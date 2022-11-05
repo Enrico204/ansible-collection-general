@@ -1,0 +1,56 @@
+- module_defaults:
+    apt:
+      cache_valid_time: 86400
+  block:
+    - name: Install iptables and iptables-persistent
+      become: true
+      apt:
+        pkg:
+          - iptables
+          - iptables-persistent
+          - arptables
+          - ebtables
+          - ipset
+
+    - name: Flush nftables
+      become: true
+      command: nft flush ruleset
+      ignore_errors: true
+
+    - name: Remove nftables
+      become: true
+      apt:
+        pkg:
+          - nftables
+        state: absent
+        purge: true
+
+    - name: Remove nftables config
+      become: true
+      file:
+        path: "/etc/nftables.conf"
+        state: absent
+
+    - name: Switch to iptables legacy
+      become: true
+      command: "update-alternatives --set {{ item }} /usr/sbin/{{ item }}-legacy"
+      loop:
+        - iptables
+        - ip6tables
+        - arptables
+        - ebtables
+      register: ua_out
+      changed_when: "'update-alternatives: using' in ua_out.stdout"
+
+    - name: Configure iptables
+      become: true
+      template:
+        src: "iptables.j2"
+        dest: "/etc/iptables/rules.{{ item }}"
+        mode: 0600
+        owner: root
+        group: root
+      loop:
+        - v4
+        - v6
+      notify: ["Reload iptables rules", "Reload black/white lists"]

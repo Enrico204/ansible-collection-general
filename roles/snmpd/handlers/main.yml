@@ -1,0 +1,15 @@
+- name: Restart snmpd
+  become: true
+  systemd:
+    name: snmpd
+    state: restarted
+    daemon_reload: yes
+
+- name: Stop snmpd on macOS
+  become: true
+  command: launchctl unload /System/Library/LaunchDaemons/org.net-snmp.snmpd.plist
+  ignore_errors: true
+
+- name: Start snmpd on macOS
+  become: true
+  command: launchctl load -w /System/Library/LaunchDaemons/org.net-snmp.snmpd.plist

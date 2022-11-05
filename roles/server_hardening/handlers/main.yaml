@@ -1,0 +1,22 @@
+- name: Restart SSH server
+  become: true
+  systemd:
+    name: sshd
+    state: restarted
+
+- name: Reload iptables rules
+  become: true
+  systemd:
+    name: iptables
+    state: restarted
+
+- name: Reload nftables rules
+  become: true
+  systemd:
+    name: nftables
+    state: restarted
+
+- name: Reload black/white lists
+  become: true
+  command: /usr/local/sbin/fw-lists-update
+  when: fw_blacklists or fw_whitelists

@@ -1,0 +1,15 @@
+- name: Install APC UPS daemon
+  import_tasks: apcupsd.yml
+  when: apcupsd_enable
+
+- name: Uninstall APC UPS daemon
+  import_tasks: apcupsd-uninstall.yml
+  when: not apcupsd_enable
+
+- name: Install metrics
+  import_tasks: metrics.yml
+  when: apcupsd_metrics
+
+- name: Uninstall metrics
+  import_tasks: metrics-uninstall.yml
+  when: not apcupsd_metrics

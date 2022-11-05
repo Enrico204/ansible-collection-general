@@ -1,0 +1,5 @@
+rsyslog_repl_port: 2514
+rsyslog_tcp_port: 514
+rsyslog_udp_port: 514
+
+rsyslog_mikrotik_topics: ["critical", "error", "info", "warning"]

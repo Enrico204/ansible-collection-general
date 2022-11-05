@@ -1,0 +1,32 @@
+- name: Remove manually installed exporter for node
+  become: true
+  file:
+    path: /usr/local/sbin/node_exporter
+    state: absent
+
+- module_defaults:
+    apt:
+      cache_valid_time: 86400
+  block:
+    - name: Add Netsplit repository
+      become: true
+      apt_repository:
+        filename: "netsplit"
+        repo: "deb [trusted=yes] https://deb.netsplit.it/{{ ansible_distribution_release }} ./"
+
+    - name: Add node exporter
+      become: true
+      apt:
+        state: present
+        name:
+          - prometheus-node-exporter
+
+- name: Add systemd configuration
+  become: true
+  copy:
+    src: node-exporter.service
+    dest: /etc/systemd/system/node-exporter.service
+    owner: root
+    group: root
+    mode: 0644
+  notify: "Restart node exporter"

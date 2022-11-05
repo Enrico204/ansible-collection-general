@@ -1,0 +1,47 @@
+- module_defaults:
+    apt:
+      cache_valid_time: 86400
+  block:
+    - name: Secure SSH ciphers
+      become: true
+      blockinfile:
+        path: /etc/ssh/sshd_config
+        block: |
+          HostKeyAlgorithms rsa-sha2-512,rsa-sha2-256,ssh-ed25519
+          KexAlgorithms curve25519-sha256@libssh.org,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,diffie-hellman-group14-sha256,curve25519-sha256,diffie-hellman-group-exchange-sha256
+          MACs umac-128-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com
+        insertbefore: ^Match
+      notify: "Restart SSH server"
+
+    - name: Disable root login with password
+      become: true
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?PermitRootLogin'
+        line: 'PermitRootLogin without-password'
+        insertbefore: ^Match
+      notify: "Restart SSH server"
+
+    - name: Disable password authentication
+      become: true
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?PasswordAuthentication'
+        line: 'PasswordAuthentication no'
+        insertbefore: ^Match
+      notify: "Restart SSH server"
+
+    - name: Create .ssh
+      file:
+        path: "~/.ssh"
+        state: directory
+        mode: '0700'
+
+    - name: Ensure SSH keys are set for current user
+      lineinfile:
+        path: "~/.ssh/authorized_keys"
+        create: true
+        line: "{{ item }}"
+        mode: 0644
+        state: present
+      loop: "{{ ssh_pubkeys }}"

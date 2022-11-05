@@ -1,0 +1,5 @@
+#!/bin/sh
+
+{% for intf in interfaces %}
+ethtool -s {{ intf }} wol g
+{% endfor %}

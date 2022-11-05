@@ -1,0 +1,4 @@
+- name: Install DBeaver
+  homebrew_cask:
+    name: "dbeaver-community"
+    state: present

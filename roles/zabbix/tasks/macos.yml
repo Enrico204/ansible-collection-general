@@ -1,0 +1,53 @@
+- name: Installing Zabbix Agent
+  homebrew:
+    name: zabbix
+    state: latest
+
+- name: Copy Zabbix configuration file
+  become: true
+  template:
+    src: zabbix_agentd.conf.j2
+    dest: "/usr/local/etc/zabbix/zabbix_agentd.conf"
+    mode: '0644'
+    owner: root
+    group: wheel
+
+- name: Create user directory
+  become: true
+  command:
+    cmd: "{{ item }}"
+    warn: false
+  with_items:
+    - dscl . -create /Groups/zabbix
+    - dscl . -create /Groups/zabbix PrimaryGroupID 200
+    - dscl . -create /Users/zabbix UniqueID 201
+    - dscl . -create /Users/zabbix PrimaryGroupID 200
+    - dscl . -create /Users/zabbix UserShell /bin/zsh
+  ignore_errors: true
+
+- name: Copy Zabbix launch file
+  copy:
+    src: com.zabbix.zabbix_agentd.plist
+    dest: "/Library/LaunchDaemons/com.zabbix.zabbix_agentd.plist"
+    mode: '0644'
+    owner: root
+    group: wheel
+  become: true
+
+- name: Stopping previous Zabbix service
+  become: true
+  command: launchctl stop com.zabbix.zabbix_agentd
+  ignore_errors: true
+
+- name: Unloading previous Zabbix service
+  become: true
+  command: launchctl unload /Library/LaunchDaemons/com.zabbix.zabbix_agentd.plist
+  ignore_errors: true
+
+- name: Installing Zabbix service
+  become: true
+  command: launchctl load /Library/LaunchDaemons/com.zabbix.zabbix_agentd.plist
+
+- name: Starting Zabbix service
+  become: true
+  command: launchctl start com.zabbix.zabbix_agentd

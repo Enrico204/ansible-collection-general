@@ -1,0 +1,4 @@
+- name: Clean old GitLab runners
+  command: gitlab-runner verify --delete
+  register: runners_clean_old
+  changed_when: "'Updated ' in runners_clean_old.stderr"

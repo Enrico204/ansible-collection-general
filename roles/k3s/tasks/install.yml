@@ -1,0 +1,20 @@
+- name: Get K3S installed version
+  command: /usr/local/bin/k3s --version
+  register: k3s_version_cmd
+  failed_when: k3s_version_cmd.rc > 2
+  changed_when: false
+
+- name: Fetch k3s installer script
+  get_url:
+    url: "https://get.k3s.io"
+    dest: /tmp/install_k3s.sh
+    checksum: "sha256:{{ script_sha256 }}"
+  when: k3s_version_cmd.stdout is empty or (k3s_version_cmd.stdout | split(" "))[2] != k3s_version
+
+- name: Install k3s
+  become: true
+  environment:
+    INSTALL_K3S_EXEC: "server --no-deploy servicelb --no-deploy traefik --kube-apiserver-arg service-node-port-range=1-65535"
+    INSTALL_K3S_VERSION: "{{ k3s_version }}"
+  command: sh /tmp/install_k3s.sh
+  when: k3s_version_cmd.stdout is empty or (k3s_version_cmd.stdout | split(" "))[2] != k3s_version

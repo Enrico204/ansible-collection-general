@@ -1,0 +1,8 @@
+module(load="imudp")
+input(type="imudp" port="514")
+
+module(load="imtcp")
+input(type="imtcp" port="514")
+
+module(load="imrelp")
+input(type="imrelp" port="2514" maxDataSize="10k")

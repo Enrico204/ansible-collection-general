@@ -1,0 +1,9 @@
+# For each interface
+- name: Loop interfaces
+  include_tasks: "mikrotik-wg.yml"
+  loop: "{{ wireguard }}"
+  loop_control:
+    loop_var: wg
+    label: "Interface"
+
+# TODO: remove foreign WG interfaces if wireguard_remove_unknown: true

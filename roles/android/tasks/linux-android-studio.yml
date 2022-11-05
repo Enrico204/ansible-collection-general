@@ -1,0 +1,52 @@
+- name: Check if the build ID is different
+  slurp:
+    src: "{{ android_studio_basedir }}/build.txt"
+  ignore_errors: true
+  register: studio_current_build
+
+- name: Download Android Studio IDE
+  get_url:
+    url: https://redirector.gvt1.com/edgedl/android/studio/ide-zips/{{ android_studio_version }}/android-studio-{{ android_studio_version }}-linux.tar.gz
+    dest: /tmp/androidstudio.tar.gz
+    mode: '0600'
+    checksum: "sha256:{{ android_studio_sha256 }}"
+  when: "not (studio_current_build.content is defined and android_studio_build == (studio_current_build.content | b64decode))"
+
+- name: Create Android Studio install dir
+  file:
+    path: "{{ android_studio_basedir }}"
+    state: directory
+    mode: '0755'
+
+- name: Install Android Studio IDE
+  unarchive:
+    src: /tmp/androidstudio.tar.gz
+    remote_src: true
+    dest: "{{ android_studio_basedir }}"
+    extra_opts: [--strip-components=1]
+  when: "not (studio_current_build.content is defined and android_studio_build == (studio_current_build.content | b64decode))"
+
+- name: Install Android Studio IDE shortcut
+  become: true
+  copy:
+    content: |
+      [Desktop Entry]
+      Version=1.0
+      Type=Application
+      Name=Android Studio
+      Exec={{ android_studio_basedir }}/bin/studio.sh
+      Icon={{ android_studio_basedir }}/bin/studio.png
+      Categories=Development
+    dest: /usr/share/applications/android-studio.desktop
+    owner: root
+    group: root
+    mode: 0644
+  when: android_studio_allusers
+
+- name: Disable auto update
+  become: true
+  lineinfile:
+    path: "{{ android_studio_basedir }}/bin/studio64.vmoptions"
+    state: present
+    line: "-Dide.no.platform.update=true"
+  when: android_studio_allusers

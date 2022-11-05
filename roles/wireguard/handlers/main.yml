@@ -1,0 +1,4 @@
+- name: Reload wireguard config
+  become: true
+  command: "/usr/local/sbin/wg_reload.sh {{ item.name }}"
+  loop: "{{ wireguard }}"

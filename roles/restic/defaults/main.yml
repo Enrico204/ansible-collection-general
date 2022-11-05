@@ -1,0 +1,108 @@
+restic_version: 0.13.1
+restic_sha256:
+  Linux:
+    x86_64: 2aba61302898b71d52235d3bcd5d95d68319c4332909755ff17753d09316dcd7
+    armv6l: b155c9b681350cf82cb59470340fc39381263074b5cbd8e4b06fd7ea022059e7
+    armv7l: b155c9b681350cf82cb59470340fc39381263074b5cbd8e4b06fd7ea022059e7
+  FreeBSD:
+    amd64: 094f588da11dc6372e5a9e360817f48c460aa2f471c71c0d9fde2df9e2fb65fe
+
+rest_server: false
+rest_server_version: 0.11.0
+rest_server_sha256:
+  Linux:
+    x86_64: 7d65bd0ebd8ed24144075db94de71353d234f0e10439c9ef7171b681ff76b259
+    armv6l: 3244420ab715f501ae0329af64e3fe0f45112fbbcd8badaa9db17be310507dcb
+  FreeBSD:
+    amd64: c3445025a7b8450982b67d0fa520bda786c5cd1ab69c69f3720096a780bd13df
+rest_server_listen: ":8000"
+
+agent: false
+restic_agent_backup_paths: ["/"]
+restic_agent_pre: ""
+restic_agent_post: ""
+restic_agent_delayed_start_max: 900
+restic_agent_iexclude: []
+restic_agent_iexclude_basic:
+  - "lost+found"
+  - "cache"
+  - "caches"
+  - "__pycache__"
+  - "imapcache"
+  - "cacheddata"
+  - ".cache"
+  - ".trash*"
+  - "trash"
+  - "thumb"
+  - ".thumb"
+  - ".thumb*"
+  - "**/tmp/*"
+  - "/home/**/app/build/generated/*"
+  - "/home/**/app/build/intermediates/*"
+  - "/home/**/app/build/kotlin/*"
+  - "/home/**/app/build/reports/*"
+  - "/home/**/node_modules/"
+  - "/home/**/venv/"
+  - "/home/*/.kube/http-cache"
+  - "/home/*/go/"
+  - "/home/*/.*-bin/"
+  - "/home/*/vmware/"
+  - "/home/*/Nextcloud/"
+  - "/home/*/.android-sdk-linux/"
+  - "/home/*/.nvm/"
+  - "/home/*/.asdf/"
+  - "/home/*/.npm/"
+  - "/home/*/.rbenv/"
+  - "/home/*/.IntelliJIdea*/"
+  - "/home/*/.BurpSuite/"
+  - "/home/*/.rustup/"
+  - "/home/*/.cargo/"
+  - "/home/*/.pyenv/"
+  - "/home/*/.android/"
+  - "/home/*/.gradle/"
+  - "/home/*/.bundle/"
+  - "/home/*/.clion-*/"
+  - "/home/*/.PyCharm*/"
+  - "/home/*/.GoLand*/"
+  - "/home/*/.arduino-*/"
+  - "/home/*/.local/share/containers/"
+  - "/home/*/.local/share/TelegramDesktop/"
+  - "/var/tmp/*"
+  - "/var/cache/*"
+  - "/var/lib/apt/lists/*"
+  - "/var/lib/docker/*"
+  - "/var/lib/containerd/*"
+  - "/var/lib/containers/*"
+  - "/var/lib/kubelet/*"
+  - "/var/lib/libvirt/*"
+  - "/lost+found"
+  - "/proc"
+  - "/mnt"
+  - "/sys"
+  - "/dev"
+  - "/run"
+  - "/usr/local/sbin/restic-agent"
+  - "/var/lib/mysql/*"
+  - "/var/lib/lxcfs/*"
+  - "/var/lib/rancher/k3s/agent/*"
+  - "/var/lib/rancher/k3s/data/*"
+  - "/var/lib/rancher/k3s/server/*"
+  - "/usr/lib/go*"
+
+restic_agent_custom_opts: ""
+restic_agent_services: []
+restic_agent_cron: "anacron"
+
+rclone: false
+rclone_prune: false
+rclone_version: 1.57.0
+rclone_sha256:
+  Linux:
+    x86_64: d34d0e8e4cf2bb37c4ec00f9be905e1678fa40ae80b4241be8d5dd46fcf6daf2
+
+# Used internally
+architectures:
+  amd64: amd64
+  x86_64: amd64
+  armv6l: arm
+  armv7l: arm

@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+
+pkill grafana-kiosk
+pkill unclutter
+
+xset s off
+xset s noblank
+xset -dpms
+#xfce4-power-manager -q
+#kill $(pidof xfce4-panel)
+
+{% for m in grafana_monitors %}
+xrandr \
+	--output "{{ m["output"] }}" \
+	--rotate {{ m["rotate"] | default("normal") }} \
+	{% if 'below' in m %}--below "{{ m["below"] }}"{% endif %} \
+	{% if 'right-of' in m %}--right-of "{{ m["right-of"] }}"{% endif %} \
+	{% if 'above' in m %}--above "{{ m["above"] }}"{% endif %} \
+	{% if 'left-of' in m %}--left-of "{{ m["left-of"] }}"{% endif %} \
+	{% if 'primary' in m and m["primary"] %}--primary{% endif %} \
+	--auto
+
+{% endfor %}
+
+sleep {{ delay_between_monitors }}
+{% for m in grafana_monitors %}
+i3-msg 'workspace {{ loop.index }}; exec grafana-kiosk -URL="{{ m["url"] }}" -kiosk-mode=full -login-method=local -playlists=true -username="{{ grafana_username }}" -password="{{ grafana_password }}" -autofit=false'
+sleep {{ delay_between_monitors }}
+{% endfor %}
+
+# openurl() {
+# 	POSITION=$(xrandr | grep "^$1" | grep -Eo '[0-9]+x[0-9]+\+[0-9]+\+[0-9]+' | cut -d '+' -f 2- | tr '+' ',')
+# 	grafana-kiosk -URL="$2" -kiosk-mode=full -login-method=local -playlists=true -username={{ grafana_username }} -password={{ grafana_password }} -window-position "$POSITION" -autofit=false &
+# }
+
+# {% for m in grafana_monitors %}
+# openurl "{{ m["output"] }}" "{{ m["url"] }}"
+# {% endfor %}
+
+unclutter -idle 0 &

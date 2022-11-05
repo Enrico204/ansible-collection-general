@@ -1,0 +1,31 @@
+- name: Remove old playbook versions of restic
+  file:
+    path: /usr/local/bin/restic
+    state: absent
+  when: ansible_os_family == 'Debian'
+
+- name: Add Netsplit repository
+  become: true
+  apt_repository:
+    filename: "netsplit"
+    repo: "deb [trusted=yes] https://deb.netsplit.it/{{ ansible_distribution_release }} ./"
+  when: ansible_os_family == 'Debian'
+
+- name: Install restic package
+  become: true
+  apt:
+    pkg:
+      - restic
+    state: present
+  when: ansible_os_family == 'Debian'
+
+- name: Install restic package
+  become: true
+  ansible.builtin.dnf:
+    pkg: restic
+    state: present
+  when: ansible_os_family == 'RedHat'
+
+- name: Install binary from GitHub
+  include_tasks: restic-dl.yml
+  when: ansible_os_family != 'Debian' and ansible_os_family != 'RedHat'

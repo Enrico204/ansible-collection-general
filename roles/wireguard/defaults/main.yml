@@ -1,0 +1,4 @@
+wireguard_remove_unknown: false
+wireguard_default_keepalive: 30
+wireguard_default_port: 13231
+wireguard_default_mtu: 1420

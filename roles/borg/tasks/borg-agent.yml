@@ -1,0 +1,19 @@
+- name: Create new borg agent executable
+  become: true
+  template:
+    src: borg-agent.sh.j2
+    dest: /usr/local/sbin/borg-agent
+    owner: root
+    group: root
+    mode: '0700'
+
+- name: Create cronjob for backup
+  become: true
+  ansible.builtin.cron:
+    name: "borg backup"
+    minute: "{{ borg_agent_when.minute | default(0) }}"
+    hour: "{{ borg_agent_when.hour | default(0) }}"
+    weekday: "{{ borg_agent_when.weekday | default('*') }}"
+    month: "{{ borg_agent_when.month | default('*') }}"
+    day: "{{ borg_agent_when.day | default('*') }}"
+    job: "/usr/local/sbin/borg-agent -cron"

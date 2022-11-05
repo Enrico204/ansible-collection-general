@@ -1,0 +1,40 @@
+# Check go version and install if necessary
+- name: Detect Go version
+  shell: /usr/local/go/bin/go version | cut -f 3 -d ' ' | sed 's/go//'
+  register: go_version_cmd
+  ignore_errors: true
+  changed_when: false
+
+- name: Remove old Go versions if any
+  become: true
+  file:
+    path: /usr/local/go
+    state: absent
+  when: go_version_cmd is not defined or go_version_cmd.stdout != go_version
+
+- name: Downloading Go
+  become: true
+  get_url:
+    url: "https://dl.google.com/go/go{{ go_version }}.linux-amd64.tar.gz"
+    dest: /tmp/go.tar.gz
+    checksum: "sha256:{{ go_sha256 }}"
+  when: go_version_cmd is not defined or go_version_cmd.stdout != go_version
+
+- name: Installing Go
+  become: true
+  unarchive:
+    src: "/tmp/go.tar.gz"
+    remote_src: true
+    dest: /usr/local
+  when: go_version_cmd is not defined or go_version_cmd.stdout != go_version
+
+- name: Add Go root path and default config
+  become: true
+  copy:
+    content: |
+      export PATH=$PATH:/usr/local/go/bin
+      export GOPRIVATE="{{ go_private }}"
+    dest: /etc/profile.d/go-variables.sh
+    owner: root
+    group: root
+    mode: '0644'

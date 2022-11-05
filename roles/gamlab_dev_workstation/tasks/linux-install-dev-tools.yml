@@ -1,0 +1,37 @@
+- name: Copy install_dev_tools.sh
+  become: true
+  template:
+    src: install_dev_tools.sh.j2
+    dest: /opt/install_dev_tools.sh
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Add desktop icon for install_dev_tools (prepare desktop dir)
+  become: true
+  file:
+    path: /etc/skel/Desktop/
+    state: directory
+    mode: "0700"
+
+- name: Add desktop icon for install_dev_tools
+  become: true
+  template:
+    src: install_dev_tools.desktop.j2
+    dest: /etc/skel/Desktop/install_dev_tools.desktop
+    owner: root
+    group: root
+    mode: "0755"
+  vars:
+    install_dev_tools_auto: ""
+
+- name: Autostart install_dev_tools
+  become: true
+  template:
+    src: install_dev_tools.desktop.j2
+    dest: /etc/xdg/autostart/install_dev_tools.desktop
+    owner: root
+    group: root
+    mode: "0644"
+  vars:
+    install_dev_tools_auto: "auto"

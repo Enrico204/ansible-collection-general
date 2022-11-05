@@ -1,0 +1,58 @@
+# Check goland version and install if necessary
+- name: Check if the build ID is different
+  slurp:
+    src: "{{ goland_basedir }}/build.txt"
+  ignore_errors: true
+  register: goland_current_build
+
+- name: Remove old GoLand versions if any
+  file:
+    path: "{{ goland_basedir }}"
+    state: absent
+  when: "not (goland_current_build.content is defined and goland_build == (goland_current_build.content | b64decode))"
+
+- name: Create GoLand dir
+  file:
+    path: "{{ goland_basedir }}"
+    state: directory
+    mode: 0755
+
+- name: Downloading Goland
+  get_url:
+    url: "https://download.jetbrains.com/go/goland-{{ goland_version }}.tar.gz"
+    dest: /tmp/goland.tar.gz
+    checksum: "sha256:https://download.jetbrains.com/go/goland-{{ goland_version }}.tar.gz.sha256"
+  when: "not (goland_current_build.content is defined and goland_build == (goland_current_build.content | b64decode))"
+
+- name: Installing Goland
+  unarchive:
+    src: "/tmp/goland.tar.gz"
+    remote_src: true
+    dest: "{{ goland_basedir }}"
+    extra_opts: [--strip-components=1]
+  when: "not (goland_current_build.content is defined and goland_build == (goland_current_build.content | b64decode))"
+
+- name: Install GoLand IDE shortcut
+  become: true
+  copy:
+    content: |
+      [Desktop Entry]
+      Version=1.0
+      Type=Application
+      Name=GoLand
+      Exec={{ goland_basedir }}/bin/goland.sh
+      Icon={{ goland_basedir }}/bin/goland.png
+      Categories=Development
+    dest: /usr/share/applications/goland.desktop
+    owner: root
+    group: root
+    mode: 0644
+  when: goland_allusers
+
+- name: Disable auto update
+  become: true
+  lineinfile:
+    path: "{{ goland_basedir }}/bin/goland64.vmoptions"
+    state: present
+    line: "-Dide.no.platform.update=true"
+  when: goland_allusers

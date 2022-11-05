@@ -1,0 +1,29 @@
+- name: Get all runners configured in GitLab
+  uri:
+    url: "{{ runner_reg_url }}/api/v4/runners/all"
+    method: GET
+    headers:
+      PRIVATE-TOKEN: "{{ gitlab_admin_token }}"
+  register: allrunners
+  delegate_to: 127.0.0.1
+  run_once: true
+
+- name: Prepare lists of configured and remote runners
+  set_fact:
+    remote_runners: "{{ allrunners.json | selectattr('description', 'contains', inventory_hostname~'-') | map(attribute='description') }}"
+    configured_runners: "{{ [inventory_hostname~'-'] | product(configured_runners_generic) | map('join') | list }}"
+  vars:
+    configured_runners_generic: "{{ runners | map(attribute='name') }}"
+
+- name: Remove unconfigured runners in GitLab
+  uri:
+    url: "{{ runner_reg_url }}/api/v4/runners/\
+      {{ allrunners.json | selectattr('description', 'equalto', item) | map(attribute='id') | first }}"
+    method: DELETE
+    headers:
+      PRIVATE-TOKEN: "{{ gitlab_admin_token }}"
+  register: runner_remove_result
+  failed_when: runner_remove_result.status != 204
+  loop: "{{ remote_runners | difference(configured_runners) }}"
+  delegate_to: 127.0.0.1
+  changed_when: true

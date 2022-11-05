@@ -1,0 +1,99 @@
+- module_defaults:
+    apt:
+      cache_valid_time: 86400
+  block:
+    - name: Install Samba packages
+      become: true
+      apt:
+        state: present
+        pkg:
+          - realmd
+          - ntp
+          - adcli
+          - sssd
+          - sssd-tools
+          - krb5-user
+
+    - name: Copying default realmd settings
+      become: true
+      template:
+        src: realmd.conf
+        dest: /etc/realmd.conf
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Configure Kerberos default realm
+      become: true
+      lineinfile:
+        path: /etc/krb5.conf
+        regexp: "default_realm ="
+        line: "default_realm = {{ ad_domain_fqdn | upper }}"
+        state: present
+
+    - name: Enable pam_mkhomedir for creating home directories
+      become: true
+      lineinfile:
+        path: /etc/pam.d/common-session
+        regexp: "pam_mkhomedir.so"
+        line: "session required pam_mkhomedir.so skel=/etc/skel/ umask=0022"
+        state: present
+
+    - name: Enable pam_group for common-auth
+      become: true
+      lineinfile:
+        path: /etc/pam.d/common-auth
+        regexp: "pam_group.so"
+        line: "auth optional pam_group.so"
+        state: present
+
+    - name: Ensure local group membership for all users
+      become: true
+      lineinfile:
+        path: /etc/security/group.conf
+        line: "*;*;*;Al0000-2400;{{ ad_default_groups }}"
+        state: present
+
+    - name: Get the list of joined realms
+      command: "realm list"
+      register: realmlist
+      changed_when: false
+
+    - name: Check for domain in realm list content
+      become: true
+      set_fact:
+        joined: "{{ ad_domain_fqdn in realmlist.stdout }}"
+
+    - name: Joining Active Directory
+      become: true
+      command: "realm join --unattended --user=\"{{ ad_admin_user }}\" \"{{ ad_domain_fqdn }}\""
+      args:
+        stdin: "{{ ad_admin_pass }}"
+      when: not joined
+
+    - name: Disable GPO processing
+      become: true
+      lineinfile:
+        path: /etc/sssd/sssd.conf
+        line: "ad_gpo_access_control = disabled"
+        state: present
+      when: ad_disable_gpo
+
+    - name: Enable "simple" login for Xrdp and others
+      become: true
+      lineinfile:
+        path: /etc/sssd/sssd.conf
+        regexp: "access_provider ="
+        line: "access_provider = simple"
+        state: present
+      when: ad_disable_gpo
+
+    - name: Executing all handlers
+      meta: flush_handlers
+
+    - name: Reboot PC after domain join
+      become: true
+      reboot:
+        post_reboot_delay: 5
+        connect_timeout: 5
+      when: not joined

@@ -1,0 +1,19 @@
+- name: Update GRUB
+  become: true
+  command: update-grub2
+
+- name: Restart lightdm
+  become: true
+  systemd:
+    name: lightdm
+    state: restarted
+
+- name: Reboot
+  become: true
+  reboot:
+    post_reboot_delay: 5
+    connect_timeout: 5
+
+- name: Sync NTP
+  become: true
+  command: sntp -sS time.euro.apple.com

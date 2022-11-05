@@ -1,0 +1,30 @@
+- name: Install Borg backup on Linux
+  become: true
+  import_tasks: debian.yml
+  when: ansible_os_family == 'Debian'
+
+- name: Install Borg backup on CentOS
+  become: true
+  import_tasks: centos.yml
+  when: ansible_os_family == 'RedHat'
+
+- name: Install Borg backup on Debian
+  become: true
+  import_tasks: linux.yml
+  when: ansible_system == "Linux" and ansible_os_family != 'Debian' and ansible_os_family != 'RedHat'
+
+- name: Configure Borg agent
+  become: true
+  import_tasks: borg-agent.yml
+  when: borg_agent
+
+# Configure new agents
+- name: Configure Borg agent for services
+  include_tasks: borg-agent-services.yml
+  loop: "{{ borg_agent_services }}"
+  loop_control:
+    loop_var: service
+    label: "{{ service.name }}"
+
+- name: Cleanup old borg agent services
+  include_tasks: borg-agent-services-cleanup.yml

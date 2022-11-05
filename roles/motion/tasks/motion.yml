@@ -1,0 +1,39 @@
+- name: Install motion
+  become: true
+  apt:
+    pkg:
+      - motion
+    state: present
+
+- name: Configure motion
+  become: true
+  template:
+    src: motion.conf.j2
+    dest: /etc/motion/motion.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart motion
+
+- name: Create cameras config dir
+  become: true
+  file:
+    state: directory
+    path: /etc/motion/conf.d
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Configure cameras
+  become: true
+  template:
+    src: camera.conf.j2
+    dest: "/etc/motion/conf.d/{{ camera.tag }}.conf"
+    owner: root
+    group: root
+    mode: '0644'
+  loop: "{{ motion_cameras }}"
+  loop_control:
+    loop_var: camera
+    label: "{{ camera.tag }}"
+  notify: Restart motion

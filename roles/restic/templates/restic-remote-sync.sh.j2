@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -eo pipefail
+
+export PATH="$PATH:/usr/bin/:/usr/local/bin/"
+
+export RESTIC_REPOSITORY='{{ restic_agent_repository }}'
+export RESTIC_PASSWORD='{{ restic_agent_password }}'
+
+export RESTIC_REPOSITORY2='rclone:{{ rclone_repository }}'
+export RESTIC_PASSWORD2='{{ rclone_password }}'
+
+export RCLONE_CONFIG="{{ rclone_config_path }}"
+export RCLONE_TRANSFERS=4
+
+# Copy latest snapshot
+for host in $(restic snapshots -c  | tr -s ' ' | cut -f 4 -d ' ' | tail +3 | head -n -2 | sort | uniq); do
+    restic copy --host=$host latest
+done
+
+{% if rclone_prune %}
+restic forget \
+	--keep-daily    14   \
+	--keep-weekly   8    \
+	--keep-monthly  12   \
+	--keep-tag MANUAL    \
+
+restic prune
+{% endif %}

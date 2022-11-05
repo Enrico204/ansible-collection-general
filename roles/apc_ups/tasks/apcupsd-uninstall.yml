@@ -1,0 +1,19 @@
+- module_defaults:
+    apt:
+      cache_valid_time: 86400
+  block:
+    - name: Remove APC tools
+      become: true
+      apt:
+        pkg:
+          - apcupsd
+        state: absent
+        purge: yes
+
+    - name: Remove apcupsd config
+      become: true
+      file:
+        path: /etc/apcupsd/
+        state: absent
+
+    # TODO: auto-de-configure machines

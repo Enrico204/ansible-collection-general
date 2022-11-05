@@ -1,0 +1,46 @@
+sysLocation    {{ snmpd_location }}
+sysContact     {{ snmpd_contact }}
+sysServices    72
+
+master  agentx
+agentaddress  {{ snmpd_listen | join(",") }}
+
+# Internal
+view systemonly included .1.3.6.1.2.1.1
+view systemonly included .1.3.6.1.2.1.25.1
+view systemonly excluded .1.3.6.1.2.1.25.1.4.0
+
+# Generic with host-ressource-mib
+view systemonly included .1.3.6.1.2.1.25.3.3.1
+
+# Linux load
+view systemonly included .1.3.6.1.4.1.2021.10.1
+
+# Net-snmp memory
+view systemonly included .1.3.6.1.4.1.2021.4
+
+# Storage SNMP
+view systemonly included .1.3.6.1.2.1.25.2
+
+# Interfaces SNMP
+view systemonly included .1.3.6.1.2.1.2.2.1
+view systemonly included .1.3.6.1.2.1.31.1.1.1
+
+# Env sensors SNMP
+view systemonly included .1.3.6.1.4.1.2021.13.16
+
+# APT
+{% if ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu' %}
+extend apt /usr/local/sbin/snmp-get-apt-updates.sh
+{% endif %}
+{% if ansible_distribution == 'CentOS' %}
+extend dnf /usr/local/sbin/snmp-get-dnf-updates.sh
+{% endif %}
+view systemonly included .1
+
+{% for src in snmpd_source %}
+rocommunity  {{ snmpd_community }} {{ src }} -V systemonly
+{% endfor %}
+{% for src in snmpd_source6 %}
+rocommunity6 {{ snmpd_community }} {{ src }} -V systemonly
+{% endfor %}

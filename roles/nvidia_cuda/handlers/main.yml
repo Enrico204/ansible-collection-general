@@ -1,0 +1,5 @@
+- name: Reboot
+  become: true
+  reboot:
+    post_reboot_delay: 5
+    connect_timeout: 5

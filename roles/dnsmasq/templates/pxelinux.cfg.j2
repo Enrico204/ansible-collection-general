@@ -1,0 +1,33 @@
+TIMEOUT 0
+PATH debian-installer/amd64/boot-screens/
+DEFAULT debian-installer/amd64/boot-screens/vesamenu.c32
+MENU TITLE Network installation
+MENU BACKGROUND #ff000000
+MENU MASTER PASSWD deleteall
+
+LABEL -
+        MENU LABEL Automatic installation (*delete everything*):
+        MENU DISABLE
+
+{% for pre in pxe_debian_preseeds %}
+{% set cfghash = preseed_files_infos.results | selectattr('item.tag', 'equalto', pre.tag) | map(attribute='stat.checksum') | join('') %}
+LABEL {{ pre.tag }}
+        MENU PASSWD
+        MENU LABEL {{ pre.label }}
+        MENU INDENT 1
+        KERNEL debian-installer/amd64/linux
+        APPEND auto=true preseed/url=tftp://{{ ansible_default_ipv4["address"] }}/preseed_{{ pre.tag }}.cfg preseed/url/checksum={{ cfghash }} priority=critical vga=788 initrd=debian-installer/amd64/initrd.gz ipv6.disable=1 {{ pxe_kernel_default_params }} noprompt DEBCONF_DEBUG=5 netcfg/get_hostname=install netcfg/get_domain=install
+{% endfor %}
+
+LABEL -
+        MENU SEPARATOR
+
+LABEL -
+        MENU LABEL Standard installation:
+        MENU DISABLE
+
+LABEL std
+        MENU LABEL Debian Bullseye standard installer
+        MENU INDENT 1
+        KERNEL debian-installer/amd64/linux
+        APPEND vga=788 initrd=debian-installer/amd64/initrd.gz

@@ -1,0 +1,101 @@
+- name: Install requirements
+  become: true
+  apt:
+    pkg:
+      - gnupg
+      - debian-archive-keyring
+      - apt-transport-https
+    state: present
+
+- name: Check if Zabbix release is installed
+  package_facts:
+    manager: auto
+
+- name: Set Zabbix package file version for Debian
+  set_fact:
+    zabbix_pkg_version: "{{ zabbix_version }}-1+{{ ansible_distribution | lower }}{{ ansible_distribution_major_version }}"
+  when: ansible_distribution == 'Debian'
+
+- name: Set Zabbix package file version for Ubuntu
+  set_fact:
+    zabbix_pkg_version: "{{ zabbix_version }}-1+{{ ansible_distribution | lower }}{{ ansible_distribution_version }}"
+  when: ansible_distribution == 'Ubuntu'
+
+- name: Set Zabbix package variables
+  set_fact:
+    zabbix_debian_version: "1:{{ zabbix_pkg_version }}"
+    zabbix_pkg_name: "zabbix-release_{{ zabbix_pkg_version }}_all.deb"
+    zabbix_upgrade_needed: false
+
+- name: Set installation needed
+  set_fact:
+    zabbix_upgrade_needed: true
+  when: >-
+    'zabbix-release' not in ansible_facts.packages
+    or ansible_facts.packages['zabbix-release'][0]['version'] != zabbix_debian_version
+
+- name: Download Zabbix release package
+  get_url:
+    url: "https://repo.zabbix.com/zabbix/{{ zabbix_version }}/{{ ansible_distribution | lower }}/pool/main/z/zabbix-release/{{ zabbix_pkg_name }}"
+    dest: /tmp/zabbix-release.deb
+    force: true
+  when: zabbix_upgrade_needed
+
+- name: Install Zabbix release package
+  become: true
+  apt:
+    deb: /tmp/zabbix-release.deb
+  when: zabbix_upgrade_needed
+
+- name: Remove old Zabbix Agent
+  become: true
+  apt:
+    pkg:
+      - zabbix-agent
+    state: absent
+    purge: true
+  when: zabbix_upgrade_needed
+  notify: "Restart Zabbix Agent"
+
+- name: Install Zabbix Agent
+  become: true
+  apt:
+    pkg:
+      - zabbix-agent
+    state: present
+
+- name: Create new zabbix agent conf
+  become: true
+  template:
+    src: zabbix_agentd.conf.j2
+    dest: /etc/zabbix/zabbix_agentd.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: "Restart Zabbix Agent"
+
+- name: Ensure .d directories are in place
+  become: true
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    mode: 0755
+  with_items:
+    - /etc/zabbix/zabbix_agentd.d
+    - /etc/zabbix/zabbix_agentd.conf.d
+
+- name: Ensure log directory is in place
+  become: true
+  file:
+    path: "/var/log/zabbix"
+    state: directory
+    owner: zabbix
+    mode: 0700
+
+- name: Enable Zabbix agent service
+  become: true
+  systemd:
+    name: zabbix-agent
+    state: started
+    enabled: true

@@ -1,0 +1,24 @@
+- name: Remove old playbook versions of rclone
+  file:
+    path: /usr/local/bin/rclone
+    state: absent
+  when: ansible_os_family == 'Debian'
+
+- name: Add Netsplit repository
+  become: true
+  apt_repository:
+    filename: "netsplit"
+    repo: "deb [trusted=yes] https://deb.netsplit.it/{{ ansible_distribution_release }} ./"
+  when: ansible_os_family == 'Debian'
+
+- name: Install rclone package
+  become: true
+  apt:
+    pkg:
+      - rclone
+    state: present
+  when: ansible_os_family == 'Debian'
+
+- name: Install binary from GitHub
+  include_tasks: rclone-dl.yml
+  when: ansible_os_family != 'Debian'

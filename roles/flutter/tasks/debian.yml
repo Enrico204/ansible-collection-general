@@ -1,0 +1,66 @@
+- module_defaults:
+    apt:
+      cache_valid_time: 86400
+  block:
+    - name: Install Flutter dependencies
+      become: true
+      apt:
+        state: present
+        pkg:
+          - libglu1-mesa
+          - xz-utils
+          - zip
+          - unzip
+          - git
+          - curl
+          - bash
+
+    - name: Expand tilde in flutter_basedir
+      set_fact:
+        flutter_basedir: "{{ flutter_basedir | expanduser }}"
+
+    - name: Check if the build ID is different
+      slurp:
+        src: "{{ flutter_basedir }}/version"
+      ignore_errors: true
+      register: flutter_current_build
+
+    - name: Download Flutter
+      get_url:
+        url: "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_{{ flutter_version }}-stable.tar.xz"
+        dest: /tmp/flutter.tar.xz
+        mode: '0600'
+        checksum: "sha256:{{ flutter_sha256 }}"
+      when: "not (flutter_current_build.content is defined and flutter_version == (flutter_current_build.content | b64decode))"
+
+    - name: Create Flutter base dir
+      file:
+        state: directory
+        path: "{{ flutter_basedir }}"
+        mode: 0755
+
+    - name: Install Flutter
+      unarchive:
+        src: /tmp/flutter.tar.xz
+        remote_src: true
+        dest: "{{ flutter_basedir }}"
+        extra_opts:
+          - "--strip-components=1"
+      when: "not (flutter_current_build.content is defined and flutter_version == (flutter_current_build.content | b64decode))"
+
+    - name: Add path to Flutter SDK
+      blockinfile:
+        marker: "# {mark} ANSIBLE MANAGED BLOCK FOR FLUTTER"
+        block: |
+          export PATH=$PATH:{{ flutter_basedir }}/bin/
+        path: "~/.bash_aliases"
+      when: flutter_set_path
+
+    - name: Add path for Chromium executable in CHROME_EXECUTABLE
+      copy:
+        content: |
+          export CHROME_EXECUTABLE=$(which chromium)
+        dest: "/etc/profile.d/chromium_path.sh"
+        owner: root
+        group: root
+        mode: '0644'

@@ -1,0 +1,35 @@
+### Non Debian-system, use the binary provided by github
+- name: Check if restic is present
+  ansible.builtin.stat:
+    checksum_algorithm: sha256
+    get_checksum: true
+    path: /usr/local/bin/restic
+  register: restic_executable
+
+- name: Set restic download file name
+  set_fact:
+    restic_dl_fname: "restic_{{ restic_version }}_{{ ansible_system | lower }}_{{ architectures[ansible_architecture] }}.bz2"
+  when: not restic_executable.stat.exists or restic_executable.stat.checksum != restic_sha256[ansible_system][ansible_architecture]
+
+- name: Download restic
+  ansible.builtin.get_url:
+    url: "https://github.com/restic/restic/releases/download/v{{ restic_version }}/{{ restic_dl_fname }}"
+    dest: /tmp/restic.bz2
+    checksum: sha256:https://github.com/restic/restic/releases/download/v{{ restic_version }}/SHA256SUMS
+  when: not restic_executable.stat.exists or restic_executable.stat.checksum != restic_sha256[ansible_system][ansible_architecture]
+  register: restic_download
+
+- name: Decompress restic
+  ansible.builtin.command: bunzip2 -f /tmp/restic.bz2
+  when: restic_download is not skipped
+
+- name: Install restic
+  become: true
+  copy:
+    remote_src: true
+    src: /tmp/restic
+    dest: /usr/local/bin/restic
+    owner: root
+    group: root
+    mode: '0755'
+  when: restic_download is not skipped

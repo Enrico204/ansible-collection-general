@@ -1,0 +1,14 @@
+conditional_fwd: []
+ipalias: []
+addresses: []
+domains: []
+pxe: false
+dnsmasq_custom_cfg: ""
+lease_file_path: ""
+static_hosts: []
+listen_interface: null
+
+pxe_debian_preseeds: []
+pxe_kernel_default_params: "language=en locale=it_IT.UTF-8 keymap=it"
+
+pxe_rpi: []

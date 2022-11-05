@@ -1,0 +1,164 @@
+# Prepare boot from TFTP
+- name: Get checksums for RPi boot.tar.xz
+  uri:
+    url: "https://downloads.raspberrypi.org/raspios_lite_armhf/partitions.json"
+    return_content: true
+  register: rpi_checksums
+
+- name: Extract checksums for RPi boot.tar.xz
+  set_fact:
+    rpi_boot_checksum: "{{ rpi_checksums.content | from_json | json_query(rpi_checksum_boot_query) }}"
+  vars:
+    rpi_checksum_boot_query: "partitions[?label=='boot'].sha256sum"
+
+- name: Download RPi boot.tar.xz
+  become: true
+  get_url:
+    url: "https://downloads.raspberrypi.org/raspios_lite_armhf/boot.tar.xz"
+    dest: "{{ pxe_storage }}/boot.tar.xz"
+    tmp_dest: "{{ pxe_storage }}"
+    checksum: "sha256:{{ rpi_boot_checksum }}"
+
+# Prepare dir for individual serial IDs
+- name: Create RPi boot dir in tftpd for each board
+  become: true
+  file:
+    path: "{{ pxe_storage }}/tftp/{{ item.id }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop: "{{ pxe_rpi }}"
+
+- name: Extract RPi boot.tar.xz
+  become: true
+  unarchive:
+    src: "{{ pxe_storage }}/boot.tar.xz"
+    dest: "{{ pxe_storage }}/tftp/{{ item.id }}"
+    remote_src: true
+    exclude:
+      - ./cmdline.txt
+  loop: "{{ pxe_rpi }}"
+
+- name: Write RPi boot cmdline
+  become: true
+  template:  # dwc_otg.lpm_enable=0 may be necessary
+    src: cmdline.txt.j2
+    dest: "{{ pxe_storage }}/tftp/{{ item.id }}/cmdline.txt"
+    owner: root
+    group: root
+    mode: '0644'
+  loop: "{{ pxe_rpi }}"
+
+# TODO: Setup root in NFS
+- name: Install NFS server
+  become: true
+  apt:
+    state: present
+    pkg:
+      - nfs-kernel-server
+
+- name: Create NFS base root
+  become: true
+  file:
+    path: "{{ pxe_storage }}/nfs"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Extract checksums for RPi root.tar.xz
+  set_fact:
+    rpi_root_checksum: "{{ rpi_checksums.content | from_json | json_query(rpi_checksum_root_query) }}"
+  vars:
+    rpi_checksum_root_query: "partitions[?label=='root'].sha256sum"
+
+- name: Download RPi root.tar.xz
+  become: true
+  get_url:
+    url: "https://downloads.raspberrypi.org/raspios_lite_armhf/root.tar.xz"
+    dest: "{{ pxe_storage }}/root.tar.xz"
+    tmp_dest: "{{ pxe_storage }}"
+    checksum: "sha256:{{ rpi_root_checksum }}"
+
+- name: Create RPi root dir for each board
+  become: true
+  file:
+    path: "{{ pxe_storage }}/nfs/raspi-{{ item.id }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop: "{{ pxe_rpi }}"
+
+- name: Extract RPi root.tar.xz
+  become: true
+  unarchive:
+    src: "{{ pxe_storage }}/root.tar.xz"
+    dest: "{{ pxe_storage }}/nfs/raspi-{{ item.id }}"
+    creates: "{{ pxe_storage }}/nfs/raspi-{{ item.id }}/etc"
+    remote_src: true
+  loop: "{{ pxe_rpi }}"
+
+- name: Configure NFS exports for root FS
+  lineinfile:
+    state: present
+    dest: /etc/exports
+    line: "{{ pxe_storage }}/nfs/raspi-{{ item.id }} {{ item.ip4 }}(rw,sync,insecure,no_subtree_check,no_root_squash)"
+    regexp: "raspi-{{ item.id }}"
+  loop: "{{ pxe_rpi }}"
+  notify: "Reload NFS exports"
+
+- name: Configure NFS exports for boot FS
+  lineinfile:
+    state: present
+    dest: /etc/exports
+    line: "{{ pxe_storage }}/tftp/{{ item.id }} {{ item.ip4 }}(rw,sync,insecure,no_subtree_check,no_root_squash)"
+    regexp: "tftp/{{ item.id }}"
+  loop: "{{ pxe_rpi }}"
+  notify: "Reload NFS exports"
+
+- name: Enable SSH in RPis
+  become: true
+  file:
+    path: "{{ pxe_storage }}/nfs/raspi-{{ item.id }}/boot/ssh"
+    state: touch
+    owner: root
+    group: root
+    mode: '0644'
+  loop: "{{ pxe_rpi }}"
+
+- name: Create .ssh dir in root home dir
+  become: true
+  file:
+    path: "{{ pxe_storage }}/nfs/raspi-{{ item.id }}/root/.ssh"
+    state: directory
+    owner: root
+    group: root
+    mode: '0600'
+  loop: "{{ pxe_rpi }}"
+
+- name: Copy SSH keys
+  become: true
+  copy:
+    dest: "{{ pxe_storage }}/nfs/raspi-{{ item.id }}/root/.ssh/authorized_keys"
+    content: |
+      {% for key in ssh_pubkeys %}
+      {{ key }}
+      {% endfor %}
+    owner: root
+    group: root
+    mode: '0600'
+  loop: "{{ pxe_rpi }}"
+
+- name: Set fstab
+  become: true
+  copy:
+    dest: "{{ pxe_storage }}/nfs/raspi-{{ item.id }}/etc/fstab"
+    content: |
+      {{ ansible_default_ipv4['address'] }}:/srv/tftp/{{ item.id }} /boot nfs soft,nocto,ac,nfsvers=3 0 0
+      proc            /proc           proc    defaults          0       0
+    owner: root
+    group: root
+    mode: '0644'
+  loop: "{{ pxe_rpi }}"

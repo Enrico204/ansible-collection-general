@@ -1,0 +1,35 @@
+- name: List all tmp files
+  find:
+    paths: /usr/local/sbin/
+    patterns: "restic-agent-*"
+  register: tmp_glob
+
+- name: Display all restic services
+  vars:
+    services_names: "{{ restic_agent_services | map(attribute='name') | list }}"
+  set_fact:
+    restic_services_to_delete: "{{ tmp_glob.files | map(attribute='path') | map('regex_replace', '^/usr/local/sbin/restic-agent-', '') | list | difference(services_names) }}"
+
+# Anacron
+- name: Remove old anacron entry for backup for service {{ item }}"
+  become: true
+  file:
+    path: /etc/cron.daily/restic-agent-{{ item }}
+    state: absent
+  loop: "{{ restic_services_to_delete }}"
+
+# Cron
+- name: Remove cronjob entry for service {{ item }}"
+  become: true
+  ansible.builtin.cron:
+    name: "restic-agent-{{ item }}"
+    state: absent
+  loop: "{{ restic_services_to_delete }}"
+
+# Executable
+- name: Remove services not specified in restic service list
+  become: true
+  file:
+    path: "/usr/local/sbin/restic-agent-{{ item }}"
+    state: absent
+  loop: "{{ restic_services_to_delete }}"

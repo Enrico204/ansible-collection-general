@@ -1,0 +1,20 @@
+- name: check fw_iptables and fw_nftables
+  fail:
+    msg: Can't have both fw_iptables and fw_nftables at the same time
+  when: fw_iptables and fw_nftables
+
+- name: Harden SSH
+  include_tasks: ssh.yaml
+  when: ssh_hardening
+
+- name: firewall blacklists/whitelists
+  include_tasks: fw_lists.yaml
+  when: (fw_blacklists | length) > 0 or (fw_whitelists | length) > 0
+
+- name: iptables firewall
+  include_tasks: iptables.yaml
+  when: fw_iptables
+
+- name: nftables firewall
+  include_tasks: nftables.yaml
+  when: fw_nftables

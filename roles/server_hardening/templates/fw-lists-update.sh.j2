@@ -1,0 +1,147 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+export PATH=$PATH:/usr/sbin/:/usr/bin/
+
+while getopts ":c" opt; do
+    case $opt in
+        c)
+            sleep $(($RANDOM % 60))
+            ;;
+        \?)
+            echo "Invalid option -$OPTARG" >&2
+            exit 3
+            ;;
+    esac
+done
+
+{% if fw_iptables %}
+FIREWALL=iptables
+{% else %}
+FIREWALL=nft
+{% endif %}
+
+importlist() {
+	BLOCKLIST=$1
+	BLOCKLISTNEW=$1_new
+	LISTFILE="$2"
+	TMPIPSETFILE="$2.$BLOCKLIST.tmp"
+
+	if [ "$FIREWALL" == "iptables" ]; then
+		set +e
+		ipset destroy $BLOCKLISTNEW > /dev/null 2>&1
+		ipset create $BLOCKLIST hash:net > /dev/null 2>&1
+		set -e
+
+		# TODO: enable IPv6
+
+		echo "create $BLOCKLISTNEW hash:net family inet hashsize 1024 maxelem 65536" > "$TMPIPSETFILE"
+		set +e
+		cat "$LISTFILE" | grep -v '^0.0.0.0/' | grep -v ":" | grep -Ev '^#' | sed "s/^/add $BLOCKLISTNEW /" >> "$TMPIPSETFILE"
+		set -e
+		cat "$TMPIPSETFILE" | ipset restore
+
+		ipset swap $BLOCKLIST $BLOCKLISTNEW
+		ipset destroy $BLOCKLISTNEW
+	else
+		echo "flush set inet fw $1" > "$TMPIPSETFILE"
+		set +e
+		cat "$LISTFILE" | grep -v '^0.0.0.0/' | grep -Ev '^#' | sed "s/^/add element inet fw $1 {/" | sed 's/$/}/' >> "$TMPIPSETFILE"
+		set -e
+		nft -f "$TMPIPSETFILE"
+	fi
+}
+
+checkfwrule() {
+	if [ "$FIREWALL" == "nft" ]; then
+		# In nftables, ip sets are created in the configuration file
+		return
+	fi
+
+	CHAIN="$1"
+	LISTNAME="$2"
+	ACTION="$3"
+	set +e
+	RULEOK=$(iptables -vnL "$CHAIN" | grep -c "$LISTNAME")
+	set -e
+	if [ "$RULEOK" -eq 0 ]; then
+		iptables -I "$CHAIN" -m set --match-set $LISTNAME src -j $ACTION
+	fi
+}
+
+getlist() {
+	case "$1" in
+		fireholL1)
+			URL=https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/firehol_level1.netset
+			;;
+		fireholL2)
+			URL=https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/firehol_level2.netset
+			;;
+		fireholL3)
+			URL=https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/firehol_level3.netset
+			;;
+		fireholL4)
+			URL=https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/firehol_level4.netset
+			;;
+		fireholWEBSRV)
+			URL=https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/firehol_webserver.netset
+			;;
+		fireholANONYM)
+			URL=https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/firehol_anonymous.netset
+			;;
+		fireholABUSER1)
+			URL=https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/firehol_abusers_1d.netset
+			;;
+		fireholABUSER30)
+			URL=https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/firehol_abusers_30d.netset
+			;;
+		fireholDC)
+			URL=https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/datacenters.netset
+			;;
+		ipdenyRU)
+			URL=https://www.ipdeny.com/ipblocks/data/aggregated/ru-aggregated.zone
+			;;
+		ipdenyCN)
+			URL=https://www.ipdeny.com/ipblocks/data/aggregated/cn-aggregated.zone
+			;;
+		ipdenyIT)
+			URL=https://www.ipdeny.com/ipblocks/data/aggregated/it-aggregated.zone
+			;;
+		ipdenyDE)
+			URL=https://www.ipdeny.com/ipblocks/data/aggregated/de-aggregated.zone
+			;;
+		ipdenyFR)
+			URL=https://www.ipdeny.com/ipblocks/data/aggregated/fr-aggregated.zone
+			;;
+		ipdenyCH)
+			URL=https://www.ipdeny.com/ipblocks/data/aggregated/ch-aggregated.zone
+			;;
+		*)
+			echo "Invalid list"
+			exit 1
+			;;
+	esac
+
+	wget --no-check-certificate --timeout=60 -q "$URL" -O "$2"
+}
+
+WORKDIR=$(mktemp -d)
+
+cleanup() { rm -rf "$WORKDIR"; }
+trap cleanup EXIT
+
+{% if (fw_blacklists | length) > 0 %}
+for list in {{ fw_blacklists | join(" ") }}; do
+	getlist $list "$WORKDIR/$list.netset"
+	importlist $list "$WORKDIR/$list.netset"
+	checkfwrule BL_DROP $list DROP
+done
+{% endif %}
+
+{% if (fw_whitelists | length) > 0 %}
+for list in {{ fw_whitelists | join(" ") }}; do
+	getlist $list "$WORKDIR/$list.netset"
+	importlist $list "$WORKDIR/$list.netset"
+	checkfwrule WL_ACCEPT $list ACCEPT
+done
+{% endif %}

@@ -1,0 +1,19 @@
+- module_defaults:
+    apt:
+      cache_valid_time: 86400
+  block:
+    - name: Remove packaged Borg Backup software
+      become: true
+      apt:
+        pkg:
+          - borgbackup
+        state: absent
+        purge: true
+
+    - name: Download borg backup
+      become: true
+      get_url:
+        url: "https://github.com/borgbackup/borg/releases/download/{{ borg_version }}/borg-linux64"
+        dest: /usr/local/bin/borg
+        mode: '0755'
+        checksum: "sha256:{{ borg_sha256 }}"

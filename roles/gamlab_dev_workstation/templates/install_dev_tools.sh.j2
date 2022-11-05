@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+
+cd "$HOME"
+
+# Do not execute twice
+if [ "$1" == "auto" ] && [ -e ".installed_dev_tools" ]; then
+    exit 0
+fi
+
+(
+rm ~/.bash_aliases
+
+printf "0\n# Installing Flutter"
+rsync -a --no-owner --no-group --delete /opt/flutter/ "$HOME/.flutter-bin"
+cat <<'EOF' >> ~/.bash_aliases
+export PATH="$PATH:$HOME/.flutter-bin/bin/"
+EOF
+
+echo "100"
+) | zenity --progress --auto-close --no-cancel --text="Installing build tools, please wait..." --title="Install build tools" --percentage=0 --time-remaining
+
+# Remove autostart if I was launched automatically
+touch .installed_dev_tools
+
+zenity --info "Installation completed! Please close and reopen ANY shell to apply"

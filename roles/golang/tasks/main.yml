@@ -1,0 +1,15 @@
+- name: Install GoLang on Debian
+  include_tasks: "debian.yml"
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- name: Install GoLang on Linux
+  include_tasks: "linux.yml"
+  when: ansible_distribution != 'Debian' and ansible_distribution != 'Ubuntu' and ansible_system == "Linux"
+
+- name: Install GoLang on macOS
+  import_tasks: macos.yml
+  when: ansible_system == "Darwin" and ansible_distribution == "MacOSX"
+
+- name: Install GoLang on Windows
+  import_tasks: windows.yml
+  when: ansible_system == "Win32NT" and "Microsoft Windows 10" in ansible_distribution

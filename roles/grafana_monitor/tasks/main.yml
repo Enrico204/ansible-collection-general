@@ -1,0 +1,81 @@
+# Download and install from https://github.com/grafana/grafana-kiosk/releases/download/v1.0.4/grafana-kiosk.linux.amd64
+- name: Download grafana-kiosk
+  become: true
+  ansible.builtin.get_url:
+    url: "https://github.com/grafana/grafana-kiosk/releases/download/v{{ kiosk_version }}/grafana-kiosk.linux.amd64"
+    dest: /usr/local/bin/grafana-kiosk
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Install x11 utils
+  become: true
+  apt:
+    pkg:
+      - lightdm
+      - i3
+      - unclutter
+      - chromium
+    state: present
+
+- name: Ensure monitor user exists
+  become: true
+  ansible.builtin.user:
+    name: monitor
+    state: present
+    password: "{{ monitor_user_password | password_hash('sha512', 'displaymonitor') }}"
+    shell: /bin/bash
+
+- name: Copy startup script
+  become: true
+  template:
+    src: start.sh.j2
+    dest: /home/monitor/monitor-start.sh
+    owner: monitor
+    group: monitor
+    mode: '0700'
+  notify: ["Restart lightdm"]
+
+- name: Create i3 config directory
+  become: true
+  file:
+    path: /home/monitor/.config/i3
+    state: directory
+    owner: monitor
+    group: monitor
+    mode: '0755'
+
+- name: Copy i3 config
+  become: true
+  template:
+    src: i3_config.j2
+    dest: /home/monitor/.config/i3/config
+    owner: monitor
+    group: monitor
+    mode: '0644'
+  notify: ["Restart lightdm"]
+
+# Set the script for autostart at login for XDG compatible DE
+# - name: Autostart grafana monitor
+#   become: true
+#   copy:
+#     src: start.desktop
+#     dest: /etc/xdg/autostart/monitor-start.desktop
+#     owner: root
+#     group: root
+#     mode: "0644"
+#   notify: ["Restart lightdm"]
+
+
+# Set autologin
+- name: Enable autologin for LightDM
+  become: true
+  lineinfile:
+    insertafter: '\[Seat:\*\]'
+    path: /etc/lightdm/lightdm.conf
+    line: "{{ item }}"
+    state: present
+  with_items:
+    - "autologin-user=monitor"
+    - "autologin-user-timeout=0"
+  notify: ["Restart lightdm"]

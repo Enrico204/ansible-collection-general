@@ -1,0 +1,6 @@
+# This build ID is found inside the build.txt (inside the ZIP), version from the URL
+goland: false
+goland_build: "GO-213.5744.269"
+goland_version: "2021.3"
+goland_basedir: "/opt/goland"
+goland_allusers: true

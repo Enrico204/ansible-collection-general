@@ -1,0 +1,52 @@
+{% if icinga2_external_http is defined or icinga2_external_https is defined %}
+{# External services #}
+object Host "external-services" {
+    check_command = "true"
+    {% for httpsvc in (icinga2_external_http | default([])) %}
+    vars.http_vhosts["{{ httpsvc.descr | default(httpsvc.host) }}"] = {
+        http_address = "{{ httpsvc.address | default(httpsvc.host) }}"
+        http_vhost = "{{ httpsvc.host }}"
+        http_port = {{ httpsvc.port | default(80) }}
+        {% if 'expect' in httpsvc %}
+        http_expect = "{{ httpsvc.expect }}"
+        {% endif %}
+        {% if 'uri' in httpsvc %}
+        http_uri = "{{ httpsvc.uri }}"
+        {% endif %}
+    }
+    {% endfor %}
+
+    {% for httpsvc in (icinga2_external_https | default([])) %}
+    vars.http_vhosts["{{ httpsvc.descr | default(httpsvc.host) }}"] = {
+        http_address = "{{ httpsvc.address | default(httpsvc.host) }}"
+        http_vhost = "{{ httpsvc.host }}"
+        http_port = {{ httpsvc.port | default(443) }}
+        {% if 'expect' in httpsvc %}
+        http_expect = "{{ httpsvc.expect }}"
+        {% endif %}
+        http_ssl = true
+        http_sni = true
+        {% if 'uri' in httpsvc %}
+        http_uri = "{{ httpsvc.uri }}"
+        {% endif %}
+    }
+    vars.ssl["{{ httpsvc.host }}"] = {
+        ssl_address = "{{ httpsvc.address | default(httpsvc.host) }}"
+        ssl_sni = "{{ httpsvc.host }}"
+        ssl_cert_valid_days_warn = 15;
+        ssl_cert_valid_days_critical = 7;
+    }
+    {% endfor %}
+
+{% if icinga2_user_email is defined %}
+    vars.notification["mail"] = {
+        groups = [ "icingaadmins" ]
+    }
+    vars.notify_users = [ "icingaadmin" ]
+{% endif %}
+
+{% if icinga2_user_tg is defined %}
+    vars.notification.telegram = true
+{% endif %}
+}
+{% endif %}

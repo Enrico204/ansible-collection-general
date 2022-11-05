@@ -1,0 +1,15 @@
+- name: Remove Zabbix from Debian
+  include_tasks: "debian-uninstall.yml"
+  when: zabbix_state == 'absent' and (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+
+- name: Install Zabbix on Debian
+  include_tasks: "debian.yml"
+  when: zabbix_state == 'present' and (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+
+- name: Remove Zabbix from macOS
+  import_tasks: macos-uninstall.yml
+  when: zabbix_state == 'absent' and (ansible_system == "Darwin" and ansible_distribution == "MacOSX")
+
+- name: Install Zabbix on macOS
+  import_tasks: macos.yml
+  when: zabbix_state == 'present' and (ansible_system == "Darwin" and ansible_distribution == "MacOSX")

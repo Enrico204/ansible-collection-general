@@ -1,0 +1,76 @@
+- module_defaults:
+    apt:
+      cache_valid_time: 86400
+  block:
+    - name: Set APT local proxy
+      become: true
+      copy:
+        content: |
+          Acquire::http::Proxy "{{ apt_proxy }}";
+        dest: /etc/apt/apt.conf.d/99proxy
+        mode: 0755
+      when: apt_proxy is defined
+
+    - name: Remove previous APT local proxy config from Debian installer
+      become: true
+      ansible.builtin.lineinfile:
+        path: /etc/apt/apt.conf
+        state: absent
+        regexp: "^Acquire::http::Proxy"
+      when: apt_proxy is defined
+
+    - name: Base tools
+      import_tasks: linux-base.yml
+
+    - name: Disable CPU mitigations
+      become: true
+      lineinfile:
+        path: /etc/default/grub
+        regexp: '^GRUB_CMDLINE_LINUX_DEFAULT'
+        line: 'GRUB_CMDLINE_LINUX_DEFAULT="quiet mitigations=off"'
+      when: disable_mitigations and not disable_iommu_passthrough
+      notify: ["Update GRUB"]
+
+    - name: Disable CPU mitigations
+      become: true
+      lineinfile:
+        path: /etc/default/grub
+        regexp: '^GRUB_CMDLINE_LINUX_DEFAULT'
+        line: 'GRUB_CMDLINE_LINUX_DEFAULT="quiet mitigations=off iommu.passthrough=1"'
+      when: disable_mitigations and disable_iommu_passthrough
+      notify: ["Update GRUB"]
+
+    - name: UI customization
+      import_tasks: linux-ui-customization.yml
+      when: x11
+
+    # https://superuser.com/questions/881102/etc-profile-not-being-sourced-at-login
+    - name: "Fix lightdm .profile loading"
+      become: true
+      copy:
+        content: |
+          # GPV: 2-May-2015, lightdm + cinnamon forgets to source ANY profiles!!
+
+          # First read /etc/profile and .profile
+          test -f /etc/profile && . /etc/profile
+          test -f "$HOME/.profile" && . "$HOME/.profile"
+          # Second read /etc/xprofile and .xprofile for X specific setup
+          test -f /etc/xprofile && . /etc/xprofile
+          test -f "$HOME/.xprofile" && . "$HOME/.xprofile"
+
+          # Local Variables:
+          # mode: shell-script
+          # sh-indentation: 2
+          # indent-tabs-mode: nil
+          # End:
+
+          # vim:set ai et sts=2 sw=2 tw=80:
+        dest: /etc/X11/Xsession.d/70fix_lightdm_gpv
+        owner: root
+        group: root
+        mode: '0644'
+      when: x11
+
+    - name: Add install dev tools
+      import_tasks: linux-install-dev-tools.yml
+      when: install_script

@@ -1,0 +1,28 @@
+- module_defaults:
+    ansible.builtin.apt:
+      cache_valid_time: 86400
+      update_cache: true
+  block:
+    - name: Install rsyslog
+      become: true
+      ansible.builtin.apt:
+        pkg:
+          - rsyslog
+          - rsyslog-relp
+        state: present
+      when: (ansible_distribution == "Debian" or ansible_distribution == "Ubuntu") and ansible_network_os is not defined
+
+    - name: Configure PostgreSQL connection
+      import_tasks: pgsql.yml
+      when: (ansible_distribution == "Debian" or ansible_distribution == "Ubuntu") and ansible_network_os is not defined
+
+    - name: Configure remote forward on Linux
+      import_tasks: fwdremote_linux.yml
+      when: (ansible_distribution == "Debian" or ansible_distribution == "Ubuntu") and ansible_network_os is not defined
+
+    - name: Configure remote forward on Mikrotik
+      import_tasks: fwdremote_mikrotik.yml
+      when: >-
+        ansible_network_os is defined
+        and ansible_network_os == 'community.network.routeros'
+        and rsyslog_udp_host is defined

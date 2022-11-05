@@ -1,0 +1,9 @@
+- name: Dump Wireguard config locally for {{ rhost }}
+  template:
+    src: wg.conf.j2
+    dest: "{{ wireguard_cfg_dump_path }}/{{ rhost }}.{{ item.name }}.conf"
+    mode: '0600'
+    lstrip_blocks: true
+  delegate_to: localhost
+  loop: "{{ hostvars[rhost]['wireguard'] }}"
+  run_once: true

@@ -1,0 +1,28 @@
+- name: Unloading Zabbix service
+  become: true
+  command: launchctl unload /Library/LaunchDaemons/com.zabbix.zabbix_agentd.plist
+  ignore_errors: true
+
+- name: Removing Zabbix Agent
+  homebrew:
+    name: zabbix
+    state: absent
+
+- name: Remove zabbix config
+  become: true
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /usr/local/etc/zabbix/
+    - /Library/LaunchDaemons/com.zabbix.zabbix_agentd.plist
+
+- name: Delete user
+  become: true
+  command:
+    cmd: "{{ item }}"
+    warn: false
+  with_items:
+    - dscl . -delete /Groups/zabbix
+    - dscl . -delete /Users/zabbix
+  ignore_errors: true

@@ -1,0 +1,101 @@
+- module_defaults:
+    apt:
+      cache_valid_time: 86400
+  block:
+    - name: Ensure prerequisites are installed
+      become: true
+      apt:
+        pkg:
+          - apt-transport-https
+          - wget
+          - gnupg
+        state: present
+
+    - name: Ensure icinga2 repo key is installed
+      become: true
+      apt_key:
+        url: https://packages.icinga.com/icinga.key
+        state: present
+
+    - name: Ensure icinga2 repo is configured
+      become: true
+      apt_repository:
+        filename: "icinga2"
+        repo: "deb https://packages.icinga.com/{{ ansible_distribution | lower }} icinga-{{ ansible_distribution_release }} main"
+
+    - name: Install Icinga2
+      become: true
+      apt:
+        state: present
+        pkg:
+          - icinga2
+          - monitoring-plugins
+          - nagios-snmp-plugins
+          - bc
+
+    - name: Get icinga2 enabled features
+      become: true
+      shell: icinga2 feature list | grep '^Enabled'
+      changed_when: false
+      register: icinga2_enabled_features
+
+    - name: Enable Icinga2 APIs
+      become: true
+      command: icinga2 api setup
+      when: "' api' not in icinga2_enabled_features.stdout"
+      notify: "Reload icinga2"
+
+    - name: Create config files
+      become: true
+      template:
+        src: "{{ item }}.j2"
+        dest: "/etc/icinga2/conf.d/{{ item }}"
+        mode: 0600
+        owner: nagios
+        group: nagios
+      notify: "Reload icinga2"
+      loop:
+        - api-users.conf
+        - hosts.conf
+        - services.conf
+        - custom_commands.conf
+        - users.conf
+        - external_services.conf
+
+    - name: Copy Telegram notifications definition
+      become: true
+      copy:
+        src: telegram-notifications-command.conf
+        dest: /etc/icinga2/conf.d/telegram-notifications-command.conf
+        mode: 0600
+        owner: nagios
+        group: nagios
+      when: icinga2_user_tg is defined
+      notify: "Reload icinga2"
+
+    - name: Copy Telegram notifications settings
+      become: true
+      template:
+        src: telegram-notifications-configuration.conf.j2
+        dest: /etc/icinga2/conf.d/telegram-notifications-configuration.conf
+        mode: 0600
+        owner: nagios
+        group: nagios
+      when: icinga2_user_tg is defined
+      notify: "Reload icinga2"
+
+    - name: Copy custom check commands
+      become: true
+      copy:
+        src: "{{ item }}"
+        dest: "/usr/local/bin/{{ item }}"
+        mode: 0755
+        owner: root
+        group: root
+      loop:
+        - check_mtk_snmp_disk.sh
+        - check_mtk_snmp_mem.sh
+        - check_snmp_env2.sh
+        - check_snmp_apt.sh
+        - check_snmp_dnf.sh
+        - check_snmp_synology.sh

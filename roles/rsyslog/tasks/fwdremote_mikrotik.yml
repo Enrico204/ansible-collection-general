@@ -1,0 +1,23 @@
+- name: "Mikrotik: prepare common options"
+  set_fact:
+    mtk_log_cmd: "bsd-syslog=yes syslog-time-format=bsd-syslog syslog-facility=daemon syslog-severity=auto"
+
+- name: "Mikrotik: Add log setting"
+  community.network.routeros_command:
+    commands:
+      - /system/logging/action/add name="logcollector" target=remote remote={{ rsyslog_udp_host }} remote-port={{ rsyslog_udp_port }} {{ mtk_log_cmd }}
+  register: command_result
+
+- name: "Mikrotik: Update log setting"
+  community.network.routeros_command:
+    commands:
+      - /system/logging/action/set [find name="logcollector"] target=remote remote={{ rsyslog_udp_host }} remote-port={{ rsyslog_udp_port }} {{ mtk_log_cmd }}
+  register: command_result
+  failed_when: >-
+    "failure:" in command_result.stdout[0]
+    or (command_result.stdout | length > 1 and "syntax error" in command_result.stdout[1])
+    or "expected end of" in command_result.stdout[0]
+
+- name: Set log levels
+  include_tasks: "fwdremote_mikrotik_topics.yml"
+  loop: "{{ rsyslog_mikrotik_topics }}"

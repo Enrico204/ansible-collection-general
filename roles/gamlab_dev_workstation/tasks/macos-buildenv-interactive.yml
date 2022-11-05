@@ -1,0 +1,9 @@
+- name: Installing GUI tools
+  homebrew_cask:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - sequel-pro
+    - vscodium
+    - firefox
+    - google-chrome

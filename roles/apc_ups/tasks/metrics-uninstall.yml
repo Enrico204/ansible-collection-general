@@ -1,0 +1,16 @@
+- module_defaults:
+    apt:
+      cache_valid_time: 86400
+  block:
+    - name: Remove upsmetrics.sh
+      become: true
+      file:
+        path: /usr/local/sbin/upsmetrics.sh
+        state: absent
+
+    - name: Remove xinetd service for ups
+      become: true
+      file:
+        path: /etc/xinetd.d/upsmetrics
+        state: absent
+      notify: "Restart xinetd"

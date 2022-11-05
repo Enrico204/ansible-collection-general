@@ -1,0 +1,159 @@
+- module_defaults:
+    apt:
+      cache_valid_time: 86400
+  block:
+    # Debian 10
+    - name: Adding libcontainers repo key for buster
+      become: true
+      apt_key:
+        url: https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/Debian_10/Release.key
+        state: present
+      when: ansible_distribution_release == 'buster'
+
+    - name: Adding libcontainers repository for buster
+      become: true
+      apt_repository:
+        filename: "codium"
+        repo: "deb http://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/Debian_10/ /"
+      when: ansible_distribution_release == 'buster'
+
+    # Debian 11
+    - name: Adding libcontainers repo key for bullseye
+      become: true
+      apt_key:
+        url: https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/Debian_11/Release.key
+        state: present
+      when: ansible_distribution_release == 'bullseye'
+
+    - name: Adding libcontainers repository for bullseye
+      become: true
+      apt_repository:
+        filename: "codium"
+        repo: "deb http://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/Debian_11/ /"
+      when: ansible_distribution_release == 'bullseye'
+
+    - name: Install containers packages
+      become: true
+      apt:
+        state: present
+        pkg:
+          - docker.io
+          - docker-compose
+          - podman
+          - buildah
+          - skopeo
+          - qemu-user-static
+
+    - name: Configure user namespaces
+      become: true
+      ansible.posix.sysctl:
+        name: kernel.unprivileged_userns_clone
+        value: 1
+        sysctl_set: true
+        state: present
+        reload: true
+
+    # Configure docker local proxy + local proxy CA
+    - name: Creating docker dynamic config dir for systemd
+      become: true
+      file:
+        path: /etc/systemd/system/docker.service.d
+        state: directory
+        mode: 0755
+      when: docker_mirror_proxy is defined
+
+    - name: Set HTTP proxy for docker images
+      become: true
+      copy:
+        content: |
+          [Service]
+          Environment="HTTP_PROXY={{ docker_mirror_proxy }}/"
+          Environment="HTTPS_PROXY={{ docker_mirror_proxy }}/"
+          Environment="NO_PROXY={{ docker_mirror_noproxy | default('') }}"
+        dest: /etc/systemd/system/docker.service.d/http-proxy.conf
+        owner: root
+        group: root
+        mode: 0644
+      when: docker_mirror_proxy is defined
+      notify: "Reload docker"
+
+    - name: Remove HTTP proxy for docker images if not specified
+      become: true
+      file:
+        path: /etc/systemd/system/docker.service.d/http-proxy.conf
+        state: absent
+      when: docker_mirror_proxy is not defined
+      notify: "Reload docker"
+
+    - name: Set HTTP proxy for podman OCI images
+      become: true
+      copy:
+        content: |
+          [engine]
+          env=["http_proxy={{ docker_mirror_proxy }}", "https_proxy={{ docker_mirror_proxy }}", "no_proxy={{ docker_mirror_noproxy | default('') }}"]
+        dest: /etc/containers/containers.conf
+        owner: root
+        group: root
+        mode: 0644
+      when: docker_mirror_proxy is defined
+
+    - name: Remove HTTP proxy for podman OCI images
+      become: true
+      file:
+        path: /etc/containers/containers.conf
+        state: absent
+      when: docker_mirror_proxy is not defined
+
+    # Add docker mirror proxy certificate
+    - name: Add docker mirror CA certificate
+      become: true
+      copy:
+        dest: /usr/local/share/ca-certificates/docker_registry_proxy.crt
+        content: "{{ docker_mirror_cert }}"
+        owner: root
+        group: root
+        mode: 0644
+      when: docker_mirror_proxy is defined and docker_mirror_cert is defined
+      notify: ["Refresh CA certificates local store", "Reload docker"]
+
+    - name: Remove docker mirror CA certificate
+      become: true
+      file:
+        path: /usr/local/share/ca-certificates/docker_registry_proxy.crt
+        state: absent
+      when: docker_mirror_proxy is not defined or docker_mirror_cert is not defined
+      notify: ["Refresh CA certificates local store", "Reload docker"]
+
+    # Add a task for cleaning docker images each night
+    - name: "Add docker image cleaner task"
+      become: true
+      cron:
+        name: "clean docker"
+        minute: "0"
+        hour: "4"
+        weekday: "0"
+        job: "docker system prune -f"
+        user: root
+      when: docker_autoclean
+
+    - name: Setup sub-gids for podman
+      become: true
+      ansible.builtin.lineinfile:
+        path: /etc/subgid
+        create: true
+        line: "gitlab-runner:200000:65536"
+        mode: 0644
+        owner: root
+        group: root
+        state: present
+
+    - name: Setup sub-uids for podman
+      become: true
+      ansible.builtin.lineinfile:
+        path: /etc/subuid
+        create: true
+        line: "gitlab-runner:200000:65536"
+        mode: 0644
+        owner: root
+        group: root
+        state: present

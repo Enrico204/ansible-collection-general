@@ -1,0 +1,6 @@
+snmpd_contact: "Me <me@example.org>"
+snmpd_location: "Sitting on the Dock of the Bay"
+snmpd_listen: ["127.0.0.1", "[::1]"]
+snmpd_community: "public"
+snmpd_source: ["127.0.0.1"]
+snmpd_source6: ["::1"]

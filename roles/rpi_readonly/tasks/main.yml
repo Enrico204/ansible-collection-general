@@ -1,0 +1,172 @@
+- module_defaults:
+    apt:
+      cache_valid_time: 86400
+  block:
+    - name: Upgrade to latest packages
+      become: true
+      apt:
+        state: latest  # noqa package-latest
+        upgrade: full
+
+    - name: Remove superfluous packages
+      become: true
+      apt:
+        state: absent
+        purge: true
+        name:
+          - triggerhappy
+          - logrotate
+          - dphys-swapfile
+
+    - name: Add busybox syslog daemon
+      become: true
+      apt:
+        state: present
+        name:
+          - busybox-syslogd
+
+    - name: Remove rsyslogd
+      become: true
+      apt:
+        state: absent
+        purge: true
+        name:
+          - rsyslogd
+
+    - name: Remove writeable paths in /var
+      become: true
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /var/lib/dhcp
+        - /var/lib/dhcpcd5
+        - /var/spool
+        - /etc/resolv.conf
+        - /var/lib/systemd/random-seed
+
+    - name: Create empty dhcpcd file
+      become: true
+      copy:
+        content: ""
+        dest: /tmp/dhcpcd.resolv.conf
+        mode: 0644
+
+    - name: Create symlinks for paths
+      become: true
+      ansible.builtin.file:
+        src: "{{ item.src }}"
+        path: "{{ item.dst }}"
+        state: link
+        force: true
+        follow: false
+      loop:
+        - src: /tmp/dhcpcd.resolv.conf
+          dst: /etc/resolv.conf
+        - src: /tmp
+          dst: /var/lib/dhcp
+        - src: /tmp
+          dst: /var/lib/dhcpcd5
+        - src: /tmp
+          dst: /var/spool
+        - src: /tmp/random-seed
+          dst: /var/lib/systemd/random-seed
+
+    - name: Set random seed in temp file
+      become: true
+      lineinfile:
+        path: /lib/systemd/system/systemd-random-seed.service
+        state: present
+        regexp: ^ExecStartPre=/bin/echo "" > /tmp/random-seed$
+        line: ExecStartPre=/bin/echo "" > /tmp/random-seed
+        insertafter: ^ExecStart
+
+    - name: Set read only flags for /boot in fstab
+      become: true
+      replace:
+        path: /etc/fstab
+        regexp: '(\s+)/boot(\s+)vfat(\s+)defaults(\s+)'
+        replace: '\1/boot\2vfat\3defaults,ro\4'
+
+    - name: Set noatime flags for / in fstab (if needed)
+      become: true
+      replace:
+        path: /etc/fstab
+        regexp: '(\s+)/(\s+)ext4(\s+)defaults(\s+)'
+        replace: '\1/\2ext4\3defaults,noatime\4'
+
+    - name: Set read only flag for / in fstab
+      become: true
+      replace:
+        path: /etc/fstab
+        regexp: '(\s+)/(\s+)ext4(\s+)defaults,noatime(\s+)'
+        replace: '\1/\2ext4\3defaults,noatime,ro\4'
+
+    - name: Switch writeable paths to tmpfs
+      become: true
+      blockinfile:
+        path: /etc/fstab
+        block: |
+          none            /tmp/               tmpfs   rw,nodev,nosuid,size=10M        0       0
+          none            /var/log/           tmpfs   rw,nodev,nosuid,size=10M        0       0
+          none            /var/tmp/           tmpfs   rw,nodev,nosuid,size=10M        0       0
+        marker: "### {mark} ANSIBLE MANAGED BLOCK FOR TMPFS"
+
+    - name: Check if fastboot noswap ro is already inside /boot/cmdline.txt
+      become: true
+      slurp:
+        src: /boot/cmdline.txt
+      register: kernel_cmdline
+
+    - name: Append fastboot noswap ro to /boot/cmdline.txt
+      become: true
+      replace:
+        path: /boot/cmdline.txt
+        regexp: '([A-Za-z0-9=,\.\-]+)$'
+        replace: '\1 fastboot noswap ro'
+      when: '"fastboot noswap ro" not in (kernel_cmdline.content | b64decode)'
+
+    - name: Add command to switch between r/o and r/w
+      become: true
+      blockinfile:
+        path: /root/.bashrc
+        block: |
+          set_bash_prompt() {
+              # GREEN  \033[0;32m
+              # RED    \033[0;31m
+              # NC     \033[0m
+
+              fs_mode=$(mount | sed -n -e "s/^\/dev\/.* on \/ .*(\(r[w|o]\).*/\1/p")
+              if [ "$fs_mode" == "rw" ]; then
+                  PS1='\[\033[01;31m\]\u@\h${fs_mode:+($fs_mode)}\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+              else
+                  PS1='\[\033[01;32m\]\u@\h${fs_mode:+($fs_mode)}\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+              fi
+          }
+
+          alias ,ro='mount -o remount,ro /; mount -o remount,ro /boot'
+          alias ,rw='mount -o remount,rw /; mount -o remount,rw /boot'
+          PROMPT_COMMAND=set_bash_prompt
+
+        marker: "### {mark} ANSIBLE MANAGED BLOCK FOR R/W R/O SWITCH CMD"
+
+    - name: Set options for busybox-syslogd
+      become: true
+      copy:
+        content: |
+          SYSLOG_OPTS="-C128 -R {{ syslogd_remote_host }}"
+          KLOG_OPTS=""
+        dest: /etc/default/busybox-syslogd
+        mode: 0644
+        user: root
+        group: root
+      when: syslogd_remote_host is defined
+      register: syslogd_cfg
+
+    - name: Restart busybox-syslogd
+      become: true
+      systemd:
+        state: restarted
+        name: busybox-syslogd
+        enabled: true
+      when: syslogd_remote_host is defined and syslogd_cfg.changed

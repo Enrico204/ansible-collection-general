@@ -1,0 +1,5 @@
+- name: Installing pexpect (playbook requirement)
+  pip:
+    state: latest
+    name: pexpect
+    extra_args: --user

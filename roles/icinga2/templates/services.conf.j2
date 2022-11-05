@@ -1,0 +1,203 @@
+apply Service "ssl-" for (hname => config in host.vars.ssl) {
+  import "generic-service"
+  check_command = "ssl"
+  vars += config
+}
+
+apply Service "tcp" {
+  import "generic-service"
+  check_command = "tcp"
+  assign where host.vars.tcp_address
+}
+
+{# SNMP #}
+apply Service "snmp-load" {
+  import "generic-service"
+  check_command = "snmp-load"
+  assign where host.vars.snmp
+}
+
+apply Service "snmp-memory" {
+  import "generic-service"
+  check_command = "snmp-memory"
+  assign where host.vars.snmp && (host.vars.os == "Linux" || host.vars.os == "macOS")
+}
+
+apply Service "snmp-storage-" for (disk => config in host.vars.snmp_disks) {
+  import "generic-service"
+  check_command = "snmp-storage"
+  vars += config
+  vars.snmp_v2 = true
+}
+
+apply Service "snmp-interfaces-" for (intf => config in host.vars.snmp_interfaces) {
+  import "generic-service"
+  check_command = "snmp-interface"
+  vars += config
+}
+
+apply Service "snmp-env2" {
+  import "generic-service"
+  check_command = "snmp-env2"
+  assign where host.vars.snmp && host.vars.os == "Linux" && host.vars.physical
+}
+
+apply Service "snmp-apt" {
+  import "generic-service"
+  check_command = "snmp-apt"
+  assign where host.vars.snmp && host.vars.apt && host.vars.os == "Linux"
+}
+
+apply Service "snmp-dnf" {
+  import "generic-service"
+  check_command = "snmp-dnf"
+  assign where host.vars.snmp && host.vars.centos && host.vars.os == "Linux"
+}
+
+{# Mikrotik #}
+apply Service "mtk-snmp-ram" {
+  import "generic-service"
+  check_command = "mtk-snmp-ram"
+  assign where host.vars.snmp && host.vars.os == "Mikrotik"
+}
+
+apply Service "mtk-snmp-disk" {
+  import "generic-service"
+  check_command = "mtk-snmp-disk"
+  assign where host.vars.snmp && host.vars.os == "Mikrotik"
+}
+
+{# Databases #}
+apply Service "mysql-" for (name => config in host.vars.mysql) {
+  import "generic-service"
+  check_command = "mysql"
+  vars += config
+}
+
+apply Service "pgsql-" for (name => config in host.vars.pgsql) {
+  import "generic-service"
+  check_command = "pgsql"
+  vars += config
+}
+
+{# Synology #}
+apply Service "snmp-synology-cpu-fan" {
+  import "generic-service"
+  check_command = "snmp-synology"
+  vars.syno_cpu_fan = true
+  assign where host.vars.snmp && host.vars.synology
+}
+
+apply Service "snmp-synology-sys-fan" {
+  import "generic-service"
+  check_command = "snmp-synology"
+  vars.syno_sys_fan = true
+  assign where host.vars.snmp && host.vars.synology
+}
+
+apply Service "snmp-synology-upgrade-check" {
+  import "generic-service"
+  check_command = "snmp-synology"
+  vars.syno_upgrade_check = true
+  assign where host.vars.snmp && host.vars.synology
+}
+
+apply Service "snmp-synology-temperature" {
+  import "generic-service"
+  check_command = "snmp-synology"
+  vars.syno_temp = true
+  assign where host.vars.snmp && host.vars.synology
+}
+
+apply Service "snmp-synology-status" {
+  import "generic-service"
+  check_command = "snmp-synology"
+  vars.syno_status = true
+  assign where host.vars.snmp && host.vars.synology
+}
+
+apply Service "snmp-synology-power" {
+  import "generic-service"
+  check_command = "snmp-synology"
+  vars.syno_power = true
+  assign where host.vars.snmp && host.vars.synology
+}
+
+
+
+{# Content of this file from here was copied and adapted from the icinga2 debian package #}
+
+/*
+ * These are generic `ping4` and `ping6`
+ * checks applied to all hosts having the
+ * `address` resp. `address6` attribute
+ * defined.
+ */
+apply Service "ping4" {
+  import "generic-service"
+  check_command = "ping4"
+  assign where host.address
+}
+
+apply Service "ping6" {
+  import "generic-service"
+  check_command = "ping6"
+  assign where host.address6
+}
+
+/*
+ * Apply the `ssh` service to all hosts
+ * with the `address` attribute defined and
+ * the custom variable `os` set to `Linux`.
+ */
+apply Service "ssh" {
+  import "generic-service"
+  check_command = "ssh"
+  assign where (host.address || host.address6) && (host.vars.os == "Linux" || host.vars.os == "Mikrotik" || host.vars.os == "macOS")
+}
+
+
+
+apply Service "http-" for (http_vhost => config in host.vars.http_vhosts) {
+  import "generic-service"
+  check_command = "http"
+  vars += config
+}
+
+apply Service "disk-" for (disk => config in host.vars.disks) {
+  import "generic-service"
+  check_command = "disk"
+  vars += config
+}
+
+apply Service "icinga" {
+  import "generic-service"
+  check_command = "icinga"
+  assign where host.name == NodeName
+}
+
+apply Service "load" {
+  import "generic-service"
+  check_command = "load"
+  assign where host.name == NodeName
+}
+
+apply Service "procs" {
+  import "generic-service"
+  check_command = "procs"
+  assign where host.name == NodeName
+}
+
+/*
+apply Service "swap" {
+  import "generic-service"
+  check_command = "swap"
+  assign where host.name == NodeName
+}
+*/
+
+apply Service "users" {
+  import "generic-service"
+  check_command = "users"
+  assign where host.name == NodeName
+}

@@ -1,0 +1,7 @@
+- name: Join Linux in AD
+  import_tasks: linux.yml
+  when: ansible_system == "Linux"
+
+- name: Join macOS in AD
+  import_tasks: macos.yml
+  when: ansible_system == "Darwin" and ansible_distribution == "MacOSX"

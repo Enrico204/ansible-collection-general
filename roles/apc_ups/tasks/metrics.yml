@@ -1,0 +1,43 @@
+- module_defaults:
+    apt:
+      cache_valid_time: 86400
+  block:
+    # Prometheus metrics
+    - name: Install xinetd
+      become: true
+      apt:
+        pkg:
+          - xinetd
+        state: present
+
+    - name: Create upsmetrics.sh
+      become: true
+      copy:
+        src: upsmetrics.sh
+        dest: /usr/local/sbin/upsmetrics.sh
+        mode: '0700'
+        owner: root
+        group: root
+
+    - name: Create xinetd service for ups
+      become: true
+      copy:
+        content: |
+          service upsmetrics
+          {
+            flags           = REUSE
+            socket_type     = stream
+            protocol        = tcp
+            port            = 8000
+            wait            = no
+            user            = root
+            server          = /usr/local/sbin/upsmetrics.sh
+            disable         = no
+            only_from       = 0.0.0.0/0
+            type            = UNLISTED
+          }
+        dest: /etc/xinetd.d/upsmetrics
+        mode: '0600'
+        owner: root
+        group: root
+      notify: "Restart xinetd"

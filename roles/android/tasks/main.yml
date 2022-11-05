@@ -1,0 +1,23 @@
+- module_defaults:
+    apt:
+      cache_valid_time: 86400
+  block:
+    - name: Install Linux requirements
+      import_tasks: linux-requirements.yml
+      when: install_sdk and ansible_system == "Linux"
+
+    - name: Install Android SDK on Linux
+      import_tasks: linux-android-sdk.yml
+      when: install_sdk and ansible_system == "Linux"
+
+    - name: Install Android Studio on Linux
+      import_tasks: linux-android-studio.yml
+      when: install_studio and ansible_system == "Linux" and ansible_machine == 'x86_64'
+
+- name: Install Android SDK on macOS
+  import_tasks: macos-android-sdk.yml
+  when: install_sdk and (ansible_system == "Darwin" and ansible_distribution == "MacOSX")
+
+- name: Install Android Studio on macOS
+  import_tasks: macos-android-studio.yml
+  when: install_studio and (ansible_system == "Darwin" and ansible_distribution == "MacOSX")

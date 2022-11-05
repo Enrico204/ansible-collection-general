@@ -1,0 +1,47 @@
+- module_defaults:
+    apt:
+      cache_valid_time: 86400
+  block:
+    - name: Flush iptables
+      become: true
+      command: "{{ item }}"
+      loop:
+        - iptables -P INPUT ACCEPT
+        - iptables --flush
+      ignore_errors: true
+
+    - name: Remove iptables and iptables-persistent
+      become: true
+      apt:
+        pkg:
+          - iptables
+          - iptables-persistent
+          - arptables
+          - ebtables
+          - ipset
+        state: absent
+        purge: true
+
+    - name: Install nftables
+      become: true
+      apt:
+        pkg:
+          - nftables
+        state: present
+
+    - name: Remove iptables config
+      become: true
+      file:
+        path: "/etc/iptables/rules.{{ item }}"
+        state: absent
+      loop: [v4, v6]
+
+    - name: Configure nftables
+      become: true
+      template:
+        src: "nftables.j2"
+        dest: "/etc/nftables.conf"
+        mode: 0700
+        owner: root
+        group: root
+      notify: ["Reload nftables rules", "Reload black/white lists"]

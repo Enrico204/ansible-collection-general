@@ -1,0 +1,149 @@
+{# For each host in inventory #}
+{% for host in groups['monitored'] %}
+{% if host == inventory_hostname %}
+{# Skip myself #}
+{% else %}
+
+{% if 'icinga2_ip' in hostvars[host] %}
+{% set ipaddr = hostvars[host]['icinga2_ip'] %}
+{% elif 'ansible_host' in hostvars[host] %}
+{% set ipaddr = hostvars[host]['ansible_host'] %}
+{% else %}
+{% set ipaddr = host %}
+{% endif %}
+
+
+object Host "{{ host }}" {
+    import "generic-host"
+    address = "{{ ipaddr }}"
+
+    {% if 'icinga2_parent_host' in hostvars[host] %}
+    vars.parent_host_name = "{{ hostvars[host]['icinga2_parent_host'] }}"
+    {% endif %}
+
+    vars.backup_downtime = "{{ icinga2_downtime }}"
+
+    {% if 'ansible_network_os' in hostvars[host] and hostvars[host]['ansible_network_os'] == 'community.network.routeros' %}
+    vars.os = "Mikrotik"
+    {% elif 'ansible_connection' in hostvars[host] and hostvars[host]['ansible_connection'] == 'none' %}
+    vars.os = "Generic"
+    {% elif 'ansible_distribution' in hostvars[host] and hostvars[host]['ansible_distribution'] == 'MacOSX' %}
+    vars.os = "macOS"
+    {% else %}
+    vars.os = "Linux"
+    {% endif %}
+
+    {% if 'icinga2_synology' in hostvars[host] and hostvars[host]['icinga2_synology'] %}
+    vars.synology = true
+    {% endif %}
+
+    {% for var in (hostvars[host]['icinga2_ping'] | default([])) %}
+    vars.ping_{{ var }} = {{ hostvars[host]['icinga2_ping'][var] }}
+    {% endfor %}
+
+{% if 'ansible_connection' not in hostvars[host] or hostvars[host]['ansible_connection'] != 'none' %}
+    {% if 'icinga2_physical_machine' in hostvars[host] and hostvars[host]['icinga2_physical_machine'] %}
+    vars.physical = true
+    {% else %}
+    vars.physical = false
+    {% endif %}
+
+    vars.ssh_port = {{ hostvars[host]['icinga2_ssh_port'] | default(22) }}
+
+    {% if 'ansible_distribution' in hostvars[host] and (hostvars[host]['ansible_distribution'] == 'Debian' or hostvars[host]['ansible_distribution'] == 'Ubuntu') %}
+    vars.apt = true
+    {% elif 'ansible_distribution' in hostvars[host] and hostvars[host]['ansible_distribution'] == 'CentOS' %}
+    vars.centos = true
+    {% endif %}
+    
+    vars.snmp = true
+    vars.snmp_v2 = true
+    vars.snmp_community = "{{ hostvars[host]['icinga2_snmp_community'] | default("public") }}"
+
+    {% for intf in (hostvars[host]['icinga2_interfaces'] | default([])) %}
+    vars.snmp_interfaces["{{ intf }}"] = {
+        snmp_interface_64bit = true
+        snmp_interface_ifname = true
+        snmp_interface = "^{{ intf }}$$"
+        snmp_v2 = true
+        snmp_community = "{{ hostvars[host]['icinga2_snmp_community'] | default("public") }}"
+    }
+    {% endfor %}
+
+    {% for disk in (hostvars[host]['icinga2_disks'] | default([])) %}
+    vars.snmp_disks["{{ disk }}"] = {
+        snmp_storage_olength = 20000
+        snmp_storage_name = "^{{ disk }}$$"
+        snmp_v2 = true
+        snmp_community = "{{ hostvars[host]['icinga2_snmp_community'] | default("public") }}"
+    }
+    {% endfor %}
+
+    {% for httpsvc in (hostvars[host]['icinga2_http'] | default([])) %}
+    {% set vhost = httpsvc.host | default(ipaddr) %}
+    vars.http_vhosts["{{ httpsvc.descr | default(vhost) }}"] = {
+        http_address = "{{ ipaddr }}"
+        http_vhost = "{{ vhost }}"
+        http_port = {{ httpsvc.port | default(80) }}
+        {% if 'expect' in httpsvc %}
+        http_expect = "{{ httpsvc.expect }}"
+        {% endif %}
+    }
+    {% endfor %}
+
+    {% for httpsvc in (hostvars[host]['icinga2_https'] | default([])) %}
+    vars.http_vhosts["{{ httpsvc.descr | default(httpsvc.host) }}"] = {
+        http_address = "{{ ipaddr }}"
+        http_vhost = "{{ httpsvc.host }}"
+        http_port = {{ httpsvc.port | default(443) }}
+        {% if 'expect' in httpsvc %}
+        http_expect = "{{ httpsvc.expect }}"
+        {% endif %}
+        http_ssl = true
+        http_sni = true
+    }
+    vars.ssl["{{ httpsvc.host }}"] = {
+        ssl_address = "{{ ipaddr }}"
+        ssl_sni = "{{ httpsvc.host | default(ipaddr) }}"
+        ssl_cert_valid_days_warn = 15;
+        ssl_cert_valid_days_critical = 7;
+    }
+    {% endfor %}
+{% endif %}
+
+    {% if 'icinga2_hostcheck' in hostvars[host] %}
+    {{ hostvars[host]['icinga2_hostcheck'] }}
+    {% endif %}
+
+{% if icinga2_user_email is defined %}
+    vars.notification["mail"] = {
+        groups = [ "icingaadmins" ]
+    }
+    vars.notify_users = [ "icingaadmin" ]
+{% endif %}
+
+{% if icinga2_user_tg is defined %}
+    vars.notification.telegram = true
+{% endif %}
+}
+
+{% endif %}
+{% endfor %}
+
+{# Local icinga2 host #}
+object Host NodeName {
+    import "generic-host"
+    address = "127.0.0.1"
+    address6 = "::1"
+    vars.os = "Linux"
+
+    vars.disks["disk /"] = {
+        disk_partitions = "/"
+    }
+
+    vars.notification["mail"] = {
+        groups = [ "icingaadmins" ]
+    }
+    vars.notify_users = [ "icingaadmin" ]
+    vars.notification.telegram = true
+}

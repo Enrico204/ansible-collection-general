@@ -1,0 +1,12 @@
+# If backup was specified, extract version from filename
+- name: Check GitLab backup file name
+  fail:
+    msg: |
+      GitLab backup file name is not compliant with GitLab defaults.
+      See https://docs.gitlab.com/ee/raketasks/backup_restore.html#backup-filename"
+  when: (gitlab_bkfile | basename) is not regex("^[0-9]+_[0-9]{4}_[0-9]{2}_[0-9]{2}_[0-9\.]+-(ce|ee)_gitlab_backup.tar$")
+
+- name: Extract GitLab version from backup
+  set_fact:
+    gitlab_version: >-
+      '{{ gitlab_bkfile | basename | regex_findall("^[0-9]+_[0-9]{4}_[0-9]{2}_[0-9]{2}_([0-9\.]+-(ce|ee))_gitlab_backup.tar$") | first | first }}'

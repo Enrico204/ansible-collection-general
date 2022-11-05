@@ -1,0 +1,4 @@
+# load module
+module (load="ompgsql")
+
+*.* action(type="ompgsql" server="{{ rsyslog_psql_host }}" uid="{{ rsyslog_psql_user }}" pwd="{{ rsyslog_psql_pass }}" db="{{ rsyslog_psql_db }}")

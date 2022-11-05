@@ -1,0 +1,131 @@
+domain-needed
+bogus-priv
+strict-order
+no-resolv
+no-hosts
+
+{% if nextdns_id is defined %}
+server=127.0.0.1#5353
+add-cpe-id={{ nextdns_id }}
+{% else %}
+server=9.9.9.9
+server=1.1.1.1
+server=8.8.8.8
+{% endif %}
+
+{% for domain in conditional_fwd %}
+server=/{{ domain.name }}/{{ domain.ip }}
+{% endfor %}
+
+{# Stop Apple private relay #}
+server=/mask.icloud.com/
+server=/mask-h2.icloud.com/
+{# Stop DoH #}
+server=/use-application-dns.net/
+
+{% for alias in ipalias %}
+alias={{ alias.from }},{{ alias.to }}
+{% endfor %}
+
+{% for addr in addresses %}
+address=/{{ addr.name }}/{{ addr.ip }}
+{% endfor %}
+
+{% for host in static_hosts %}
+{% if 'name' in host %}
+host-record={{ host.name }}{% if 'ip4' in host %},{{ host.ip4 }}{% endif %}{% if 'ip6' in host %},{{ host.ip6 }}{% endif %}
+
+{% else %}
+host-record={{ host.names | join(",") }}{% if 'ip4' in host %},{{ host.ip4 }}{% endif %}{% if 'ip6' in host %},{{ host.ip6 }}{% endif %}
+
+{% endif %}
+{% endfor %}
+
+interface={{ ansible_default_ipv4["alias"] }}
+
+{% for domain in domains %}
+{# Configure domain for IPv4 #}
+{% if 'subnet' in domain %}
+domain={{ domain.name }},{{ domain.subnet }},local
+{% endif %}
+{# Configure domain for IPv6 #}
+{% if 'subnet6' in domain %}
+domain={{ domain.name }},{{ domain.subnet6 }},local
+{% endif %}
+
+{% if 'dhcp4' in domain %}
+{# Configure basic DHCP #}
+{% set tag = domain.name.split(".")[0] | lower %}
+
+{% if 'begin' in domain.dhcp4 %}
+{# Configure DHCP dynamic range #}
+dhcp-range=set:{{ tag }},{{ domain.dhcp4.begin }},{{ domain.dhcp4.end }},{{ domain.dhcp4.mask | default('255.255.255.0') }},{{ domain.dhcp4.lease | default('168h') }}
+{% else %}
+{# Configure DHCP static range #}
+dhcp-range=set:{{ tag }},{{ domain.subnet.split("/")[0] }},static,{{ domain.dhcp4.mask | default('255.255.255.0') }},{{ domain.dhcp4.lease | default('168h') }}
+{% endif %}
+
+
+dhcp-option=set:{{ tag }},option:router,{{ domain.dhcp4.gw }}
+dhcp-option=set:{{ tag }},option:dns-server,{{ domain.dhcp4.dns | default(ansible_default_ipv4["address"]) }}
+{# dhcp-option=set:{{ tag }},option:ntp-server,172.27.0.2 #}
+dhcp-option=set:{{ tag }},option:domain-search,{{ domain.name }}
+{# Stop WPAD #}
+dhcp-option=set:{{ tag }},252,"\n" 
+
+{# Add statically assigned leases #}
+{% if 'static' in domain.dhcp4 %}
+{% for host in domain.dhcp4.static %}
+dhcp-host={{ host.mac }},set:{{ tag }},{{ host.ip }},{{ host.name }}
+{% endfor %}
+{% endif %}
+
+{# END Configure basic DHCP #}
+{% endif %}
+{# END Configure domain #}
+{% endfor %}
+
+{% if read_only_root %}
+leasefile-ro
+{% endif %}
+dhcp-authoritative
+dhcp-rapid-commit
+
+{% if pxe %}
+enable-tftp
+tftp-root={{ pxe_storage }}/tftp/
+tftp-no-fail
+{# tftp-secure #}
+pxe-prompt="Press F8 for network boot menu", 5
+pxe-service=x86PC, "Boot from local disk"
+pxe-service=x86PC, "Install from PXE", "pxelinux"
+pxe-service=x86PC, "Boot netboot.xyz", "netboot.xyz.kpxe"
+pxe-service=x86PC, "Boot netboot.xyz (undionly)", "netboot.xyz-undionly.kpxe"
+{# EFI Support #}
+pxe-service=x86-64_EFI, "Boot from local disk"
+{# pxe-service=x86-64_EFI, "Install from PXE", "pxelinux" #}
+pxe-service=x86-64_EFI, "Boot netboot.xyz", "netboot.xyz.efi"
+{% endif %}
+
+cache-size=1000
+local-ttl=3
+
+# If a DHCP client claims that its name is "wpad", ignore that.
+# This fixes a security hole. see CERT Vulnerability VU#598349
+dhcp-name-match=set:wpad-ignore,wpad
+dhcp-ignore-names=tag:wpad-ignore
+
+{% if pxe_rpi | length > 0 %}
+{# These strings are required by the RPi boot ROM #}
+pxe-service=tag:rpipxe,0,"Raspberry Pi Boot"
+pxe-service=tag:rpipxe,0,"Raspberry Pi Boot   "
+
+
+{# Add each RPi with a statically assigned IP #}
+{% for rpi in pxe_rpi %}
+{% set tag = rpi.domain.split(".")[0] | lower %}
+dhcp-host={{ rpi.mac }},set:{{ tag }},set:rpipxe,{{ rpi.ip4 }},{{ rpi.name }}
+{% endfor %}
+
+{% endif %}
+{{ dnsmasq_custom_cfg }}

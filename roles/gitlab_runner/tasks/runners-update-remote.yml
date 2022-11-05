@@ -1,0 +1,30 @@
+- name: Refresh runners configured in GitLab
+  uri:
+    url: "{{ runner_reg_url }}/api/v4/runners/all"
+    method: GET
+    headers:
+      PRIVATE-TOKEN: "{{ gitlab_admin_token }}"
+  register: allrunners
+  delegate_to: 127.0.0.1
+  run_once: true
+
+- name: Prepare lists of configured and remote runners
+  set_fact:
+    remote_runners: "{{ allrunners.json | selectattr('description', 'contains', inventory_hostname) | map(attribute='description') }}"
+    configured_runners: "{{ [inventory_hostname~'-'] | product(configured_runners_generic) | map('join') | list }}"
+  vars:
+    configured_runners_generic: "{{ runners | map(attribute='name') }}"
+
+- name: Update configured runners
+  uri:
+    url: "{{ runner_reg_url }}/api/v4/runners/{{ item.id }}"
+    method: PUT
+    body:
+      tag_list: "{{ runner_instance.tags | join(',') }}"
+    body_format: form-urlencoded
+    headers:
+      PRIVATE-TOKEN: "{{ gitlab_admin_token }}"
+  vars:
+    runner_instance: "{{ runners | selectattr('name', 'in', item.description) | first }}"
+  loop: "{{ allrunners.json | selectattr('description', 'contains', inventory_hostname) }}"
+  delegate_to: 127.0.0.1

@@ -1,0 +1,8 @@
+{% if rsyslog_relp_host is defined %}
+module(load="omrelp")
+*.* action(type="omrelp" target="{{ rsyslog_relp_host }}" port="{{ rsyslog_repl_port }}")
+{% elif rsyslog_tcp_host is defined %}
+*.* action(type="omfwd" target="{{ rsyslog_tcp_host }}" port="{{ rsyslog_tcp_port }}" protocol="tcp")
+{% else %}
+*.* action(type="omfwd" target="{{ rsyslog_udp_host }}" port="{{ rsyslog_udp_port }}" protocol="tcp")
+{% endif %}

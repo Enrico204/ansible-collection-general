@@ -1,0 +1,47 @@
+- name: Add Debian backports repo for Buster
+  become: true
+  apt_repository:
+    repo: deb http://deb.debian.org/debian buster-backports main
+    state: present
+  when: ansible_distribution_release == "buster"
+
+- name: Install dependencies
+  become: true
+  apt:
+    pkg:
+      - wireguard
+      - wireguard-tools
+    state: present
+
+# Wireguard config
+- name: Create new configuration for Wireguard
+  become: true
+  template:
+    src: wg.conf.j2
+    dest: "/etc/wireguard/{{ item.name }}.conf"
+    owner: root
+    group: root
+    mode: '0600'
+    lstrip_blocks: true
+  loop: "{{ wireguard }}"
+
+- name: Enable wg-quick on boot and start it
+  become: true
+  systemd:
+    state: started
+    daemon_reload: true
+    name: "wg-quick@{{ item.name }}"
+    enabled: true
+  register: wg_quick_system
+  loop: "{{ wireguard }}"
+
+- name: Copy reload script for wireguard
+  become: true
+  copy:
+    src: wg_reload.sh
+    dest: /usr/local/sbin/wg_reload.sh
+    owner: root
+    group: root
+    mode: 0755
+  notify: "Reload wireguard config"
+

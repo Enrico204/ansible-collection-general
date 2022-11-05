@@ -1,0 +1,31 @@
+- module_defaults:
+    apt:
+      cache_valid_time: 86400
+  block:
+    - name: Install APC tools
+      become: true
+      apt:
+        pkg:
+          - apcupsd
+        state: present
+
+    - name: Configure apcupsd interface to UPS
+      become: true
+      template:
+        src: apcupsd.conf.j2
+        dest: /etc/apcupsd/apcupsd.conf
+      notify: "Restart apcupsd"
+
+    - name: Configure apcupsd actions
+      become: true
+      template:
+        src: "{{ item }}.sh.j2"
+        dest: "/etc/apcupsd/{{ item }}"
+        mode: '0755'
+        owner: root
+        group: root
+      loop:
+        - killpower
+        - onbattery
+        - offbattery
+        - doshutdown

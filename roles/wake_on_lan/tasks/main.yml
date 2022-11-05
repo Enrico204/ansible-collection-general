@@ -1,0 +1,42 @@
+- name: Install ethtool
+  become: true
+  apt:
+    pkg:
+      - ethtool
+    state: present
+
+- name: Create wake-on-lan-enable script
+  become: true
+  template:
+    src: wake-on-lan-enable.sh.j2
+    dest: /usr/local/sbin/wake-on-lan-enable
+    mode: '0755'
+    owner: root
+    group: root
+  vars:
+    interfaces: "{{ ansible_interfaces | select('match', '^(enp|enx|eth)[a-zA-Z0-9]+$') | list }}"
+  notify: "Launch command manually"
+
+- name: Set on boot script execution
+  become: true
+  copy:
+    content: |
+      [Unit]
+      Description=Enable wake-on-lan
+
+      [Service]
+      ExecStart=/usr/local/sbin/wake-on-lan-enable
+
+      [Install]
+      WantedBy=multi-user.target
+    dest: /etc/systemd/system/wake-on-lan-enable.service
+    mode: '0600'
+    owner: root
+    group: root
+  notify: "Reload systemd daemon"
+
+- name: Enable boot script
+  become: true
+  systemd:
+    name: wake-on-lan-enable
+    enabled: true

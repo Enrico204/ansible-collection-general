@@ -1,0 +1,35 @@
+- name: List all tmp files
+  find:
+    paths: /usr/local/sbin/
+    patterns: "borg-agent-*"
+  register: tmp_glob
+
+- name: Display all borg services
+  vars:
+    services_names: "{{ borg_agent_services | map(attribute='name') | list }}"
+  set_fact:
+    borg_services_to_delete: "{{ tmp_glob.files | map(attribute='path') | map('regex_replace', '^/usr/local/sbin/borg-agent-', '') | list | difference(services_names) }}"
+
+# Anacron
+- name: Remove old anacron entry for backup for service {{ item }}"
+  become: true
+  file:
+    path: /etc/cron.daily/borg-agent-{{ item }}
+    state: absent
+  loop: "{{ borg_services_to_delete }}"
+
+# Cron
+- name: Remove cronjob entry for service {{ item }}"
+  become: true
+  ansible.builtin.cron:
+    name: "borg backup service {{ item }}"
+    state: absent
+  loop: "{{ borg_services_to_delete }}"
+
+# Executable
+- name: Remove services not specified in borg service list
+  become: true
+  file:
+    path: "/usr/local/sbin/borg-agent-{{ item }}"
+    state: absent
+  loop: "{{ borg_services_to_delete }}"

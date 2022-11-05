@@ -1,0 +1,9 @@
+- module_defaults:
+    apt:
+      cache_valid_time: 86400
+  block:
+    - name: Install packaged Borg Backup software
+      become: true
+      ansible.builtin.dnf:
+        pkg: borgbackup
+        state: present

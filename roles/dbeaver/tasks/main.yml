@@ -1,0 +1,11 @@
+- name: Install DBeaver in Debian
+  import_tasks: debian.yml
+  when: ansible_system == "Linux"
+
+- name: Install DBeaver in macOS
+  import_tasks: macos.yml
+  when: ansible_system == "Darwin" and ansible_distribution == "MacOSX"
+
+- name: Install DBeaver in Windows
+  import_tasks: windows.yml
+  when: ansible_system == "Win32NT" and "Microsoft Windows 10" in ansible_distribution

@@ -1,0 +1,22 @@
+- name: Create remote repo upload executable
+  become: true
+  template:
+    src: restic-remote-sync.sh.j2
+    dest: /usr/local/sbin/restic-remote-sync
+    owner: root
+    group: root
+    mode: '0700'
+
+- name: Remove old restic remote repo upload crontab file
+  become: true
+  file:
+    path: /etc/cron.d/restic-remote-sync
+    state: absent
+
+- name: Create cron entry for restic remote repo upload
+  become: true
+  ansible.builtin.cron:
+    name: "restic-remote-sync"
+    minute: "0"
+    hour: "4"
+    job: "/usr/local/sbin/restic-remote-sync"

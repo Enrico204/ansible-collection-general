@@ -1,0 +1,18 @@
+object User "{{ icinga2_user }}" {
+    import "generic-user"
+
+    display_name = "{{ icinga2_user_display_name }}"
+    groups = [ "icingaadmins" ]
+
+{% if icinga2_user_email is defined %}
+    email = "{{ icinga2_user_email }}"
+{% endif %}
+
+{% if icinga2_user_tg is defined %}
+    vars.telegram_chat_id = "{{ icinga2_user_tg }}"
+{% endif %}
+}
+
+object UserGroup "icingaadmins" {
+    display_name = "Icinga 2 Admin Group"
+}

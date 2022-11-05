@@ -1,0 +1,5 @@
+- name: Restart TimescaleDB
+  become: true
+  service:
+    name: postgresql
+    state: restarted

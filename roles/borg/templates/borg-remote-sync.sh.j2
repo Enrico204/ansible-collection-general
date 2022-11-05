@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -eo pipefail
+
+export PATH="$PATH:/usr/bin/:/usr/local/bin/"
+export RCLONE_CONFIG="{{ rclone_config_path }}"
+export RCLONE_TRANSFERS=4
+
+rclone sync "{{ borg_agent_base_repository }}" "{{ rclone_repository }}"

@@ -1,0 +1,8 @@
+- name: Copy snmpd config
+  become: true
+  template:
+    src: snmpd_macos.conf.j2
+    dest: /etc/snmp/snmpd.conf
+  notify:
+    - Stop snmpd on macOS
+    - Start snmpd on macOS

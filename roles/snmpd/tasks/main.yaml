@@ -1,0 +1,15 @@
+- name: Configure Debian/Ubuntu
+  include_tasks: debian.yaml
+  when: (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu') and ansible_connection != 'ansible.netcommon.network_cli'
+
+- name: Configure CentOS
+  include_tasks: centos.yaml
+  when: ansible_distribution == 'CentOS' and ansible_connection != 'ansible.netcommon.network_cli'
+
+- name: Configure macOS
+  include_tasks: macos.yaml
+  when: (ansible_system == "Darwin" and ansible_distribution == "MacOSX") and ansible_connection != 'ansible.netcommon.network_cli'
+
+- name: Configure Mikrotik
+  include_tasks: mikrotik.yaml
+  when: ansible_connection == 'ansible.netcommon.network_cli' and ansible_network_os == 'community.network.routeros'

@@ -1,0 +1,7 @@
+- name: Reload systemd daemon, enable and start the THP disabler
+  become: true
+  systemd:
+    state: started
+    daemon_reload: true
+    name: disable-thp
+    enabled: true

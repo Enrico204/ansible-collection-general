@@ -1,0 +1,29 @@
+- name: Add Netsplit repository
+  become: true
+  apt_repository:
+    filename: "netsplit"
+    repo: "deb [trusted=yes] https://deb.netsplit.it/{{ ansible_distribution_release }} ./"
+  when: ansible_os_family == 'Debian'
+
+- name: Install caddy-extended package
+  become: true
+  apt:
+    pkg:
+      - caddy-extended
+    state: present
+  when: ansible_os_family == 'Debian'
+
+- name: Install binary from GitHub
+  fail:
+    msg: Playbook not yet compatible with your system
+  when: ansible_os_family != 'Debian'
+
+- name: Create caddy-extended config
+  become: true
+  template:
+    src: Caddyfile.j2
+    dest: "/etc/caddy-extended/conf.d/motion"
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart caddy-extended

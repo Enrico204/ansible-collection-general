@@ -1,0 +1,38 @@
+- name: Add systemd configuration for disabling THP
+  become: true
+  copy:
+    content: |-
+      [Unit]
+      Description=Disable Transparent Huge Pages
+      Documentation=https://redis.io/topics/latency
+
+      [Service]
+      Type=oneshot
+      ExecStart=/bin/sh -c "/bin/echo 'never' > /sys/kernel/mm/transparent_hugepage/enabled"
+      ExecStart=/bin/sh -c "/bin/echo 'never' > /sys/kernel/mm/transparent_hugepage/defrag"
+
+      [Install]
+      WantedBy=multi-user.target
+    dest: /etc/systemd/system/disable-thp.service
+    owner: root
+    group: root
+    mode: 0644
+  notify: Reload systemd daemon, enable and start the THP disabler
+
+- name: Add configuration for allowing TCP backlog of 512
+  become: true
+  copy:
+    content: |-
+      net.core.somaxconn=512
+    dest: /etc/sysctl.d/90-set-somaxconn.conf
+    owner: root
+    group: root
+    mode: 0644
+
+- name: Install dependencies
+  become: true
+  apt:
+    pkg:
+      - curl
+      - gnupg
+    state: present

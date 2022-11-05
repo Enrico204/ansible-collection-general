@@ -1,0 +1,107 @@
+#!/usr/bin/env bash
+set -eo pipefail
+
+export PATH="$PATH:/usr/bin/:/usr/local/bin/"
+
+export RESTIC_REPOSITORY='{{ restic_agent_repository }}'
+{% if restic_agent_password != "" %}
+export RESTIC_PASSWORD='{{ restic_agent_password }}'
+{% endif %}
+
+if [ "$1" == "-cron" ]; then
+{% if restic_agent_delayed_start_max > 0 %}
+	sleep $(($RANDOM % {{ restic_agent_delayed_start_max }}))
+{% endif %}
+
+    # Redirect stdout and stderr to syslog
+    #exec 3>&1 4>&2
+    #exec 1> >(logger -t restic-agent -p local0.info) 2> >(logger -t restic-agent -p local0.err)
+fi
+
+IONICE="ionice -c 3"
+if ! command -v ionice &> /dev/null
+then
+	IONICE=""
+fi
+
+{% if service.type == 'mysql' %}
+# Use MySQLdump for dumping one or more databases to stdout
+nice -n 19 $IONICE mysqldump -h "{{ service.host }}" -P {{ service.port | default(3306) }} -u "{{ service.user }}" -p"{{ service.pass }}" \
+    --single-transaction --opt -R \
+    {% if service.databases is defined %} --databases {{ service.databases | join(" ") }} {% else %} --all-databases {% endif %} \
+    | sed -e 's/^CREATE DEFINER=.* \(FUNCTION\|PROCEDURE\)/CREATE \1/' \
+    | restic backup  \
+    --host="{{ service.name }}"     \
+	--stdin                         \
+    --stdin-filename "{{ service.filename | default('stdin.sql') }}" \
+    {{ restic_agent_custom_opts }}
+
+{% elif service.type == 'pgsql' %}
+# PostgreSQL connection string need to be specified in a file named `.pgpass`. So, only one process at time can run
+# Use flock to acquire a lock, fail after 4 hours
+umask 0077
+exec 200>/tmp/pgpass-lock
+flock -w 14400 200
+
+# Create pgpass
+remove_pgpass() { rm -f ~/.pgpass; }
+trap remove_pgpass EXIT
+printf "%s:%d:%s:%s:%s" "{{ service.host }}" {{ service.port | default(5432) }} "{{ service.database }}" "{{ service.user }}" "{{ service.pass }}" > ~/.pgpass
+
+PGOPTIONS='--client-min-messages=warning' nice -n 19 $IONICE \
+    pg_dump -h "{{ service.host }}" -p {{ service.port | default(5432) }} -U "{{ service.user }}" \
+    --compress=0 -Fc {{ service.database }} \
+    | restic backup  \
+    --host="{{ service.name }}"     \
+	--stdin                         \
+    --stdin-filename "{{ service.filename | default('stdin.bak') }}" \
+    {{ restic_agent_custom_opts }}
+
+remove_pgpass
+flock -u 200
+
+{% elif service.type == 'mikrotik' %}
+eval $(ssh-agent -s | grep -v echo)
+# Mikrotik requires an SSH key
+ssh-add - 2>/dev/null <<EOF
+{{ service.ssh_privkey }}
+EOF
+
+ssh -o StrictHostKeyChecking=no \
+    -p {{ service.port | default(22) }} \
+    "{{ service.user }}@{{ service.host }}" \
+    "/export"                       \
+    | restic backup  \
+    --host="{{ service.name }}"     \
+	--stdin                         \
+    --stdin-filename "{{ service.filename | default('stdin.rsc') }}" \
+    {{ restic_agent_custom_opts }}
+
+ssh-add -D 2> /dev/null
+kill $SSH_AGENT_PID
+
+{% elif service.type == 'redis' %}
+redis-cli -h "{{ service.host }}" \
+    -p {{ service.port | default(6379) }} \
+    -a "{{ service.pass }}" \
+    --rdb -                         \
+    2>/dev/null                     \
+    | restic backup  \
+    --host="{{ service.name }}"     \
+	--stdin                         \
+    --stdin-filename "{{ service.filename | default('stdin') }}" \
+    {{ restic_agent_custom_opts }}
+
+{% elif service.type == 'portainer' %}
+curl -k -s \
+    -H 'X-API-Key: {{ service.apikey }}' \
+    -H 'Content-Type: application/json' \
+    -d '{}' \
+    -X POST \
+    {{ service.proto | default('https') }}://{{ service.host }}:{{ service.port | default(9443) }}/api/backup \
+    | restic backup  \
+    --host="{{ service.name }}"     \
+	--stdin                         \
+    --stdin-filename "{{ service.filename | default('stdin.tar.gz') }}" \
+    {{ restic_agent_custom_opts }}
+{% endif %}

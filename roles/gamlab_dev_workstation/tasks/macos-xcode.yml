@@ -1,0 +1,100 @@
+# Step 1: Check if Xcode installation and version
+- name: Check if Xcode already exists
+  stat:
+    path: "/Applications/Xcode.app"
+  register: Xcodeapp
+
+- name: Xcode is not installed
+  set_fact:
+    install_xcode: true
+  when: not Xcodeapp.stat.exists
+
+- name: Get current Xcode version
+  shell: /usr/bin/xcodebuild -version | grep Xcode | cut -f 2 -d ' '
+  register: xcode_curversion
+  when: Xcodeapp.stat.exists
+  changed_when: false
+
+- name: Set Xcode for re-install if the installed version is different than the configured one
+  set_fact:
+    install_xcode: true
+  when: Xcodeapp.stat.exists and xcode_curversion.stdout != macos_xcode_version
+
+# Step 2: Remove Xcode if the version requested is not the same installed
+- name: Remove Xcode files
+  become: true
+  file:
+    path: "{{ item }}"
+    state: absent
+  with_items:
+    - /tmp/Xcode.app
+    - /Applications/Xcode.app
+    - "/Users/{{ ansible_user }}/Library/Developer/Xcode"
+    - "/Users/{{ ansible_user }}/Library/Developer/CoreSimulator"
+    - /Library/Preferences/com.apple.dt.Xcode.plist
+    - "/Users/{{ ansible_user }}/Library/Caches/com.apple.dt.Xcode"
+    - "/Users/{{ ansible_user }}/Library/Application\ Support/Xcode/"
+  when: install_xcode
+
+- name: Installing sha256sum
+  homebrew:
+    name: coreutils
+    state: present
+  when: install_xcode
+
+# Step 3: Install Xcode if doesn't exists or if it was old
+- name: Download .xip from local cache
+  get_url:
+    url: "{{ macos_xcode_url }}"
+    dest: "/tmp/Xcode_{{ macos_xcode_version }}.xip"
+    checksum: "sha256:{{ macos_xcode_url }}.sha256sum"
+  when: install_xcode
+  async: 1000
+  poll: 10
+
+- name: Extract Xcode
+  command: "xip -x /tmp/Xcode_{{ macos_xcode_version }}.xip"
+  args:
+    chdir: "/tmp/"
+  when: install_xcode
+
+- name: Move Xcode.app
+  command: mv Xcode.app /Applications
+  args:
+    chdir: "/tmp/"
+  when: install_xcode
+
+#    - name: remove quarantine xattr
+#      command: xattr -d com.apple.quarantine Xcode.app
+#      args:
+#        chdir: /Applications
+#      become: yes
+#      ignore_errors: yes
+
+- name: Accept license (it can last 10-15 minutes)
+  become: true
+  command: /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -license accept
+  when: install_xcode
+  async: 1000
+  poll: 10
+
+- name: Install additional components automatically
+  become: true
+  command: /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -runFirstLaunch
+  changed_when: false
+
+#    - name: Fix cocoapods + Xcode 12
+#      shell: cd $(xcode-select -p)/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks/Ruby.framework/Versions/2.6/usr/include/ruby-2.6.0 && ln -s universal-darwin20 universal-darwin19
+#      become: yes
+
+- name: Remove temporary Xcode.xip
+  become: true
+  file:
+    path: "{{ item }}"
+    state: absent
+  with_items:
+    - "/tmp/Xcode_{{ macos_xcode_version }}.xip"
+    - /tmp/Xcode.app
+
+# Workaround for XCode 12 + cocoapods (to port to Ansible)
+# cd $(xcode-select -p)/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks/Ruby.framework/Versions/2.6/usr/include/ruby-2.6.0 && ln -s universal-darwin20 universal-darwin19

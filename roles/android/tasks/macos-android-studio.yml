@@ -1,0 +1,4 @@
+- name: Install Android Studio
+  homebrew_cask:
+    name: android-studio
+    state: present

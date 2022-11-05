@@ -1,0 +1,46 @@
+- module_defaults:
+    apt:
+      cache_valid_time: 86400
+  block:
+    - name: Install snmpd
+      become: true
+      apt:
+        pkg: snmpd
+        state: present
+
+    - name: Copy snmpd config
+      become: true
+      template:
+        src: snmpd.conf.j2
+        dest: /etc/snmp/snmpd.conf
+      notify: "Restart snmpd"
+
+    - name: Create systemd override for snmpd
+      become: true
+      file:
+        path: /etc/systemd/system/snmpd.service.d/
+        state: directory
+
+    - name: Copy snmpd systemd override
+      become: true
+      copy:
+        src: snmpd.override.conf
+        dest: /etc/systemd/system/snmpd.service.d/override.conf
+      notify: "Restart snmpd"
+
+    - name: Enable systemd
+      become: true
+      ansible.builtin.systemd:
+        name: snmpd
+        enabled: true
+        state: started
+        daemon_reload: true
+
+    - name: Copy snmp-get-apt-updates script
+      become: true
+      copy:
+        src: snmp-get-apt-updates.sh
+        dest: /usr/local/sbin/snmp-get-apt-updates.sh
+        owner: root
+        group: root
+        mode: 0755

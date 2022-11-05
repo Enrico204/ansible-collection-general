@@ -1,0 +1,47 @@
+[Interface] # {{ item.name }}
+Address = {{ item.vpn_ip }}/{{ item.cidr | default(24) }}
+ListenPort = {{ item.listen_port | default(wireguard_default_port) }}
+PrivateKey = {{ item.privkey }}
+MTU = {{ item.mtu | default(wireguard_default_mtu) }}
+
+{# For each host in inventory #}
+{% for host in hostvars %}
+    {# Check if it has any wireguard config #}
+    {% if 'wireguard' in hostvars[host] %}
+        {# Cycle inside configs #}
+        {% for wg in hostvars[host]["wireguard"] %}
+            {% set wg_listen_port = wg["listen_port"] | default(wireguard_default_port) %}
+            {# Check if the name of the config is the same as ours (skip myself) #}
+            {% if wg["name"] == item.name and wg["vpn_ip"] != item.vpn_ip %}
+
+[Peer] # {{ host }}
+PublicKey = {{ wg["pubkey"] }}
+{# #}
+                {% if 'keepalive' in wg %}
+                    {% if wg['keepalive'] > 0 %}
+PersistentKeepalive = {{ wg["keepalive"] }}
+                    {% endif %}
+                {% elif wireguard_default_keepalive > 0 %}
+PersistentKeepalive = {{ wireguard_default_keepalive }}
+                {% endif %}
+{# #}
+                {% if 'allowed' in wg %}
+AllowedIPs = {{ wg["vpn_ip"] }}/32,{{ wg["allowed"] | join(",") }}
+                {% else %}
+AllowedIPs = {{ wg["vpn_ip"] }}/32
+                {% endif %}
+{# #}
+                {# If endpoint_host is empty (but specified!) the client has NO endpoint #}
+                {# If endpoint_host is not empty, use the value #}
+                {# If endpoint_host is not defined, use the client host name #}
+                {% if 'endpoint_host' in wg and wg["endpoint_host"] == "" %}
+                {% elif 'endpoint_host' in wg %}
+Endpoint = {{ wg["endpoint_host"] }}:{{ wg["endpoint_port"] | default(wg_listen_port) }}
+                {% else %}
+Endpoint = {{ hostvars[host]["inventory_hostname"] }}:{{ wg["endpoint_port"] | default(wg_listen_port) }}
+                {% endif %}
+# END {{ host }}
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+{% endfor %}

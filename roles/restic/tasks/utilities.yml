@@ -1,0 +1,8 @@
+- name: Create status report command
+  become: true
+  template:
+    src: restic-status.sh.j2
+    dest: /usr/local/sbin/restic-status
+    owner: root
+    group: root
+    mode: '0700'

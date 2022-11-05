@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+set -eo pipefail
+
+export PATH="$PATH:/usr/bin/:/usr/local/bin/"
+
+export RESTIC_REPOSITORY='{{ restic_agent_repository }}'
+{% if restic_agent_password != "" %}
+export RESTIC_PASSWORD='{{ restic_agent_password }}'
+{% endif %}
+
+if [ "$1" == "-cron" ]; then
+{% if restic_agent_delayed_start_max > 0 %}
+	sleep $(($RANDOM % {{ restic_agent_delayed_start_max }}))
+{% endif %}
+
+    # Redirect stdout and stderr to syslog
+    #exec 3>&1 4>&2
+    #exec 1> >(logger -t restic-agent -p local0.info) 2> >(logger -t restic-agent -p local0.err)
+fi
+
+## Pre-backup script
+
+{{ restic_agent_pre | default('') }}
+
+## END pre-backup script
+
+IONICE="ionice -c 3"
+if ! command -v ionice &> /dev/null
+then
+	IONICE=""
+fi
+
+nice -n 19 $IONICE restic backup \
+	--one-file-system \
+	--exclude-caches \
+	--exclude-if-present '.nobackup' \
+{% for excl in restic_agent_iexclude %}
+	--iexclude '{{ excl }}' \
+{% endfor %}
+{% for excl in restic_agent_iexclude_basic %}
+	--iexclude '{{ excl }}' \
+{% endfor %}
+	{{ restic_agent_custom_opts }} \
+	{% for path in restic_agent_backup_paths %} {{ path }} {% endfor %}
+
+## Post-backup script
+
+{{ restic_agent_post | default('') }}
+
+## END post-backup script

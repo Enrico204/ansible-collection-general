@@ -1,0 +1,11 @@
+[Unit]
+Requires=network.target
+After=network.target
+Description=Start the exporter-smartctl instance
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/smartctl_exporter{% for d in exporter_smartctl_disks %} --smartctl.device={{ d }}{% endfor %}
+
+[Install]
+WantedBy=multi-user.target

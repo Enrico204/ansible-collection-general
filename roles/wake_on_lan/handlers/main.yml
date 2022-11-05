@@ -1,0 +1,8 @@
+- name: Reload systemd daemon
+  become: true
+  systemd:
+    daemon_reload: true
+
+- name: Launch command manually
+  become: true
+  command: /usr/local/sbin/wake-on-lan-enable

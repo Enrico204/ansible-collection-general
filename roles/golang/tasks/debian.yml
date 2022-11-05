@@ -1,0 +1,15 @@
+- name: Ensure that Go is installed from buster-backports
+  become: true
+  apt:
+    pkg:
+      - golang
+    default_release: buster-backports
+  when: ansible_distribution_release == 'buster'
+
+- name: Ensure that Go is installed from bullseye-backports
+  become: true
+  apt:
+    name:
+      - golang
+    default_release: bullseye-backports
+  when: ansible_distribution_release == 'bullseye'

@@ -1,0 +1,5 @@
+- name: Reload icinga2
+  become: true
+  systemd:
+    name: icinga2
+    state: restarted

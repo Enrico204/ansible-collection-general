@@ -1,0 +1,43 @@
+# Set brew path for M1 chips
+- name: Set brew path for M1
+  set_fact:
+    brewbin: /opt/homebrew/bin/
+  when: ansible_architecture == 'arm64'
+
+- name: Set brew path globally for M1
+  become: true
+  copy:
+    content: |
+      /opt/homebrew/bin/
+    dest: /etc/paths.d/100homebrew
+    mode: 0644
+  when: ansible_architecture == 'arm64'
+
+- name: Set brew path for amd64
+  set_fact:
+    brewbin: /usr/local/bin/
+  when: ansible_architecture == 'x86_64'
+
+- name: Installing base tools
+  homebrew:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - coreutils
+    - carthage
+    - jq
+
+# TODO: https://stackoverflow.com/questions/60481623/errors-when-installing-cocoapods-with-gem
+- name: Installing fastlane and cocoapods
+  become: true
+  command: "{{ item }}"
+  loop:
+    - gem install fastlane -NV --conservative
+    - gem install cocoapods --conservative
+  register: geminstall
+  changed_when: "geminstall.stdout | length > 0"
+
+- name: Enable Rosetta 2
+  become: true
+  command: softwareupdate --install-rosetta --agree-to-license
+  when: ansible_architecture == 'arm64'

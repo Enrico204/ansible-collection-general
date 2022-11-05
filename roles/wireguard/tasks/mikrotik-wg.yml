@@ -1,0 +1,51 @@
+- name: "Prepare Wireguard interface command"
+  set_fact:
+    wgintfcmd: >-
+      comment=""
+      listen-port={{ wg.listen_port | default(wireguard_default_port) }}
+      private-key="{{ wg.privkey }}"
+      mtu={{ wg.mtu | default(wireguard_default_mtu) }}
+
+- name: 'Add {{ wg.name }} if they does not exists'
+  community.network.routeros_command:
+    commands:
+      - /interface/wireguard/add name={{ wg.name }} {{ wgintfcmd }}
+  register: command_result
+
+- name: 'Update {{ wg.name }} settings'
+  community.network.routeros_command:
+    commands:
+      - /interface/wireguard/set [find name={{ wg.name }}] {{ wgintfcmd }}
+  register: command_result
+  failed_when: >-
+    "failure:" in command_result.stdout[0]
+    or (command_result.stdout | length > 1 and "syntax error" in command_result.stdout[1])
+    or "expected end of" in command_result.stdout[0]
+
+# Peers
+- name: 'Interface {{ wg.name }}: Mark all peers for deletion'
+  community.network.routeros_command:
+    commands:
+      - /interface/wireguard/peers/set [find interface={{ wg.name }}] comment="ANSIBLE WORK-IN-PROGRESS"
+  register: command_result
+  failed_when: >-
+    "failure:" in command_result.stdout[0]
+    or (command_result.stdout | length > 1 and "syntax error" in command_result.stdout[1])
+    or "expected end of" in command_result.stdout[0]
+
+- name: 'Interface {{ wg.name }}: Set peers'
+  include_tasks: "mikrotik-wg-peers.yml"
+  loop: "{{ hostvars | dict2items | selectattr('value.wireguard', 'defined') | rejectattr('value.inventory_hostname', '==', inventory_hostname) | list }}"
+  loop_control:
+    loop_var: peer
+    label: "Peer"
+
+- name: 'Interface {{ wg.name }}: Remove old peers'
+  community.network.routeros_command:
+    commands:
+      - /interface/wireguard/peers/remove [find interface={{ wg.name }} comment="ANSIBLE WORK-IN-PROGRESS"]
+  register: command_result
+  failed_when: >-
+    "failure:" in command_result.stdout[0]
+    or (command_result.stdout | length > 1 and "syntax error" in command_result.stdout[1])
+    or "expected end of" in command_result.stdout[0]

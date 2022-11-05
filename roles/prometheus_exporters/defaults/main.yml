@@ -1,0 +1,4 @@
+exporter_smartctl: true
+exporter_smartctl_disks: []
+
+exporter_node: true

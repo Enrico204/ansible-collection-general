@@ -1,0 +1,23 @@
+- name: Add borg
+  import_role:
+    name: borg
+  when: "'borg' in backup_agent"
+  vars:
+    borg_agent: true
+    borg_agent_pre: "{{ backup_pre | default('') }}"
+    borg_agent_post: "{{ backup_post | default('') }}"
+    borg_agent_exclude: "{{ backup_exclude | default([]) }}"
+    borg_agent_backup_paths: "{{ backup_paths | default(['/']) }}"
+    borg_agent_services: "{{ backup_services | default([]) }}"
+
+- name: Add restic
+  import_role:
+    name: restic
+  when: "'restic' in backup_agent"
+  vars:
+    restic_agent: true
+    restic_agent_pre: "{{ backup_pre | default('') }}"
+    restic_agent_post: "{{ backup_post | default('') }}"
+    restic_agent_iexclude: "{{ backup_exclude | default([]) }}"
+    restic_agent_backup_paths: "{{ backup_paths | default(['/']) }}"
+    restic_agent_services: "{{ backup_services | default([]) }}"

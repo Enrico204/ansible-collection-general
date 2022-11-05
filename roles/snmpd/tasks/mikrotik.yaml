@@ -1,0 +1,19 @@
+- name: Update community settings
+  community.network.routeros_command:
+    commands:
+      - /snmp community set [ find default=yes ] addresses=::/0 authentication-protocol=MD5 disabled=no encryption-protocol=DES name={{ snmpd_community }} read-access=yes security=none write-access=no
+  register: command_result
+  failed_when: >-
+    "failure:" in command_result.stdout[0]
+    or (command_result.stdout | length > 1 and "syntax error" in command_result.stdout[1])
+    or "expected end of" in command_result.stdout[0]
+
+- name: Update SNMP settings
+  community.network.routeros_command:
+    commands:
+      - /snmp set contact="{{ snmpd_contact }}" enabled=yes location="{{ snmpd_location }}"
+  register: command_result
+  failed_when: >-
+    "failure:" in command_result.stdout[0]
+    or (command_result.stdout | length > 1 and "syntax error" in command_result.stdout[1])
+    or "expected end of" in command_result.stdout[0]

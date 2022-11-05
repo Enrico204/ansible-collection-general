@@ -1,0 +1,24 @@
+- name: Restart dnsmasq
+  become: true
+  systemd:
+    state: restarted
+    name: dnsmasq
+    enabled: true
+
+- name: Restart stubby
+  become: true
+  systemd:
+    state: restarted
+    name: stubby
+    enabled: true
+
+- name: Restart lighttpd
+  become: true
+  systemd:
+    state: restarted
+    name: lighttpd
+    enabled: true
+
+- name: Reload NFS exports
+  become: true
+  command: "exportfs -r"

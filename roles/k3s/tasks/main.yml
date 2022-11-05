@@ -1,0 +1,24 @@
+- module_defaults:
+    apt:
+      cache_valid_time: 86400
+  block:
+    - name: Check required variables
+      fail:
+        msg: Missing configuration
+      when: kubeconfig_path is empty
+
+    - name: Install requirements
+      import_tasks: requirements.yml
+
+    - name: Install requirements
+      import_tasks: install.yml
+
+    - name: Fetch configuration
+      become: true
+      slurp:
+        src: "/etc/rancher/k3s/k3s.yaml"
+      register: k3s_kubeconfig
+
+    - name: Fix configuration server address
+      set_fact:
+        k3s_kubeconfig: "{{ k3s_kubeconfig.content | b64decode | replace('server: https://127.0.0.1:6443', 'server: https://' + ansible_fqdn + ':6443') }}"

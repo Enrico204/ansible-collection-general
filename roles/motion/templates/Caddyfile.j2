@@ -1,0 +1,27 @@
+{
+	order replace after encode
+}
+
+:80 {
+    handle_path /stream/* {
+        @blocked not remote_ip 172.27.0.2
+        respond @blocked "Nope" 403 {
+            close
+        }
+
+        reverse_proxy 127.0.0.1:8081
+    }
+
+    handle_path / {
+        @blocked not remote_ip 172.27.0.2
+        respond @blocked "Nope" 403 {
+            close
+        }
+
+        replace re "https?://.*?:8081/" /stream/
+        replace re "https?://.*?:8080/" /
+        reverse_proxy 127.0.0.1:8080 {
+            header_up Accept-Encoding identity
+        }
+    }
+}

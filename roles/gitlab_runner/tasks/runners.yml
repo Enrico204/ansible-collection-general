@@ -1,0 +1,13 @@
+- name: Check remote runners
+  import_tasks: runners-clean-remote.yml
+
+- name: Check local runners
+  import_tasks: runners-clean-local.yml
+
+- name: Configure new runners
+  import_tasks: runners-add-missing.yml
+
+- name: Update remote runners
+  import_tasks: runners-update-remote.yml
+
+# TODO: update local config

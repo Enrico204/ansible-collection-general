@@ -1,0 +1,123 @@
+- name: Check if the Android SDK is present
+  stat:
+    path: "{{ android_sdk_basedir }}/"
+  register: android_sdk_present
+
+# Install Android SDK CLI tools
+- name: Download Android SDK CLI Tools
+  get_url:
+    url: "https://dl.google.com/android/repository/commandlinetools-linux-{{ android_sdk_cli_version }}_latest.zip"
+    dest: /tmp/androidsdk.zip
+    mode: '0600'
+    checksum: "sha256:{{ android_sdk_cli_sha256 }}"
+  when: not android_sdk_present.stat.exists
+
+- name: Create Android SDK directory
+  file:
+    state: directory
+    path: "{{ android_sdk_basedir }}/"
+    mode: 0755
+  when: not android_sdk_present.stat.exists
+
+- name: Extract Android SDK
+  unarchive:
+    src: /tmp/androidsdk.zip
+    remote_src: true
+    dest: /tmp
+  when: not android_sdk_present.stat.exists
+
+- name: Create tool directory
+  file:
+    path: "{{ android_sdk_basedir }}/cmdline-tools/"
+    state: directory
+    mode: 0755
+  when: not android_sdk_present.stat.exists
+
+- name: Move SDK command line tools in the right directory
+  command: "mv /tmp/cmdline-tools {{ android_sdk_basedir }}/cmdline-tools/tools"
+  when: not android_sdk_present.stat.exists
+
+# Prepare CLI SDK
+- name: Updating CLI tools index
+  command: "{{ android_sdk_basedir }}/cmdline-tools/tools/bin/sdkmanager --update"
+  environment:
+    ANDROID_SDK_ROOT: "{{ android_sdk_basedir }}/"
+  changed_when: true
+
+- name: Accepting all licenses
+  expect:
+    command: "{{ android_sdk_basedir }}/cmdline-tools/tools/bin/sdkmanager --licenses"
+    responses:
+      'y/N': 'y'
+  environment:
+    ANDROID_SDK_ROOT: "{{ android_sdk_basedir }}/"
+
+- name: Installing base SDK components
+  expect:
+    timeout: null
+    command: "{{ android_sdk_basedir }}/cmdline-tools/tools/bin/sdkmanager \"{{ item }}\""
+    responses:
+      'y/N': 'y'
+  environment:
+    ANDROID_SDK_ROOT: "{{ android_sdk_basedir }}/"
+  loop:
+    - "cmdline-tools;latest"
+    - "tools"
+    - "platform-tools"
+    - "build-tools;{{ android_sdk_build_tools }}"
+
+# Installing SDK packages
+- name: Installing SDK platforms
+  expect:
+    timeout: null
+    command: "{{ android_sdk_basedir }}/cmdline-tools/tools/bin/sdkmanager \"{{ item }}\""
+    responses:
+      'y/N': 'y'
+  environment:
+    ANDROID_SDK_ROOT: "{{ android_sdk_basedir }}/"
+  loop: '{{ android_sdk_packages }}'
+
+# Accept all licenses
+- name: Accepting all licenses
+  expect:
+    command: "{{ android_sdk_basedir }}/cmdline-tools/tools/bin/sdkmanager --licenses"
+    responses:
+      'y/N': 'y'
+  environment:
+    ANDROID_SDK_ROOT: "{{ android_sdk_basedir }}/"
+
+- name: Add path to SDK tools
+  become: true
+  copy:
+    content: |
+      export ANDROID_SDK_ROOT={{ android_sdk_basedir }}/
+      export ANDROID_HOME={{ android_sdk_basedir }}/
+      export PATH=$PATH:$ANDROID_SDK_ROOT/emulator:$ANDROID_SDK_ROOT/tools:$ANDROID_SDK_ROOT/cmdline-tools/tools/bin:$ANDROID_SDK_ROOT/platform-tools
+      export PATH=$PATH:$ANDROID_SDK_ROOT/build-tools/{{ android_sdk_build_tools }}/
+    dest: /etc/profile.d/android-sdk.sh
+    owner: root
+    group: root
+    mode: '0755'
+  when: android_sdk_allusers
+
+- name: Fix Android SDK issues (?!?)
+  ansible.builtin.file:
+    src: "{{ android_sdk_basedir }}/build-tools/{{ android_sdk_build_tools }}/{{ item.src }}"
+    dest: "{{ android_sdk_basedir }}/build-tools/{{ android_sdk_build_tools }}/{{ item.dst }}"
+    state: link
+  loop:
+    - src: d8
+      dst: dx
+    - src: lib/d8.jar
+      dst: lib/dx.jar
+
+# Installing emulator and AVDs
+- name: Installing SDK emulator platform
+  expect:
+    timeout: null
+    command: "{{ android_sdk_basedir }}/cmdline-tools/tools/bin/sdkmanager \"emulator\""
+    responses:
+      'y/N': 'y'
+  environment:
+    ANDROID_SDK_ROOT: "{{ android_sdk_basedir }}/"
+  when: ansible_virtualization_role != 'guest' and vmxavailable is success and android_sdk_allusers

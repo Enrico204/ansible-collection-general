@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+export PATH="$PATH:/usr/bin/:/usr/local/bin/"
+restic snapshots -c | tail -n +3 | head -n -2 | tr -s ' ' | cut -d ' ' -f 2,3,4 | sort -r -k 1,2 | sort -k 3 -u

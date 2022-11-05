@@ -1,0 +1,88 @@
+# Restore GitLab backup, if any
+- name: Copy main backup file
+  become: true
+  copy:
+    src: "{{ gitlab_bkfile }}"
+    dest: /var/opt/gitlab/backups/
+    owner: git
+    group: git
+    mode: '0644'
+
+- name: Stop GitLab services
+  become: true
+  command: gitlab-ctl stop {{ item }}
+  with_items:
+    - unicorn
+    - puma
+    - sidekiq
+  ignore_errors: true  # noqa ignore-errors no-changed-when
+
+- name: Create hstore extension
+  become: true  # noqa no-changed-when
+  command: gitlab-psql -d gitlabhq_production
+  args:
+    stdin: "CREATE EXTENSION hstore;"
+
+- name: Restore GitLab backup
+  become: true  # noqa no-changed-when
+  command: gitlab-backup restore BACKUP={{ gitlab_bkfile | basename | replace('_gitlab_backup.tar', '') }} force=yes
+
+- name: Restore secrets and config (legacy)
+  become: true
+  unarchive:
+    src: "{{ gitlab_bkcfg }}"
+    dest: /
+
+- name: Remove letsencrypt configuration
+  become: true
+  lineinfile:
+    path: /etc/gitlab/gitlab.rb
+    state: absent
+    line: "letsencrypt['enable'] = true"
+  when: test_mode
+
+- name: Disable NGINX redirect to HTTPS
+  become: true
+  lineinfile:
+    path: /etc/gitlab/gitlab.rb
+    state: absent
+    line: "nginx['redirect_http_to_https'] = true"
+  when: test_mode
+
+- name: Disable LDAP
+  become: true
+  lineinfile:
+    path: /etc/gitlab/gitlab.rb
+    state: absent
+    line: "gitlab_rails['ldap_enabled'] = true"
+  when: test_mode
+
+- name: Change public URL for GitLab
+  become: true
+  lineinfile:
+    path: /etc/gitlab/gitlab.rb
+    state: present
+    regexp: '^external_url'
+    line: "external_url '{{ gitlab_external_url }}'"
+  when: test_mode
+
+- name: Change public URL for registry
+  become: true
+  lineinfile:
+    path: /etc/gitlab/gitlab.rb
+    state: present
+    regexp: '^registry_external_url'
+    line: "registry_external_url '{{ gitlab_external_url_registry }}'"
+  when: test_mode and gitlab_external_url_registry is defined
+
+- name: Reconfigure GitLab
+  become: true  # noqa no-changed-when
+  command: gitlab-ctl reconfigure
+
+- name: Restart GitLab
+  become: true  # noqa no-changed-when
+  command: gitlab-ctl restart
+
+- name: Sanitize GitLab
+  become: true  # noqa no-changed-when
+  command: gitlab-rake gitlab:check SANITIZE=true

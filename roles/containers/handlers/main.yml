@@ -1,0 +1,11 @@
+- name: Refresh CA certificates local store
+  become: true
+  command: update-ca-certificates
+
+- name: Reload docker
+  become: true
+  systemd:
+    state: restarted
+    daemon_reload: true
+    name: docker
+    enabled: true

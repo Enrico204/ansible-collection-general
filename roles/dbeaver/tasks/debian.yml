@@ -1,0 +1,17 @@
+- module_defaults:
+    apt:
+      cache_valid_time: 86400
+  block:
+    - name: Add Netsplit repository
+      become: true
+      apt_repository:
+        filename: "netsplit"
+        repo: "deb [trusted=yes] https://deb.netsplit.it/{{ ansible_distribution_release }} ./"
+
+    - name: Install DBeaver
+      become: true
+      apt:
+        pkg:
+          - dbeaver-ce
+        state: present
+        update_cache: true

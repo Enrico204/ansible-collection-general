@@ -1,0 +1,57 @@
+- name: Install bash on FreeBSD as requirement
+  become: true
+  community.general.pkgng:
+    name: bash
+    state: present
+  when: ansible_os_family == 'FreeBSD'
+
+# TODO: do not exclude RPis, create a tmpfs mount point for r/o filesystems instead
+# TODO: RPis must use cron as their FS is r/o
+- name: Create new restic agent executable
+  become: true
+  template:
+    src: restic-agent.sh.j2
+    dest: /usr/local/sbin/restic-agent
+    owner: root
+    mode: '0700'
+
+# Anacron
+- name: Create anacron entry for backup
+  become: true
+  copy:
+    dest: /etc/cron.daily/restic-agent
+    content: |-
+      #!/usr/bin/env bash
+      /usr/local/sbin/restic-agent -cron
+      exit $?
+    owner: root
+    group: root
+    mode: '0700'
+  when: "restic_agent_cron == 'anacron' and (restic_agent_when is not defined or restic_agent_when != 'never')"
+
+- name: Remove old anacron entry for backup
+  become: true
+  file:
+    path: /etc/cron.daily/restic-agent
+    state: absent
+  when: restic_agent_cron != 'anacron' or (restic_agent_when is defined and restic_agent_when == "never")
+
+# Cron
+- name: Remove cronjob entry
+  become: true
+  ansible.builtin.cron:
+    name: "restic-agent"
+    state: absent
+  when: "restic_agent_cron != 'cron' or (restic_agent_when is defined and restic_agent_when == 'never')"
+
+- name: Create cronjob for backup
+  become: true
+  ansible.builtin.cron:
+    name: "restic-agent"
+    minute: "{{ restic_agent_when.minute | default(0) }}"
+    hour: "{{ restic_agent_when.hour | default(0) }}"
+    weekday: "{{ restic_agent_when.weekday | default('*') }}"
+    month: "{{ restic_agent_when.month | default('*') }}"
+    day: "{{ restic_agent_when.day | default('*') }}"
+    job: "/usr/local/sbin/restic-agent -cron"
+  when: restic_agent_cron == 'cron' and (restic_agent_when is not defined or restic_agent_when != "never")

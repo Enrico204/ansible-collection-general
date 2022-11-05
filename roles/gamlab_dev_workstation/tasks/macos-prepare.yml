@@ -1,0 +1,93 @@
+- name: Installing Homebrew
+  import_role:
+    name: geerlingguy.mac.homebrew
+
+- name: Check if home directory exists
+  become: true
+  stat:
+    path: "/Users/{{ ansible_user }}"
+  register: homedirpath
+
+- name: Create home directory
+  become: true
+  command: createhomedir -c -u {{ ansible_user }}
+  when: not homedirpath.stat.exists
+
+- name: Fix SNTP sync
+  become: true
+  copy:
+    content: ""
+    dest: /var/db/ntp-kod
+    mode: '0644'
+    owner: root
+    group: wheel
+  notify: "Sync NTP"
+
+- name: Disable setup assistant
+  become: true
+  copy: # TODO: this file changes between macOS versions
+    src: com.apple.SetupAssistant.plist
+    dest: "/Users/{{ ansible_user }}/Library/Preferences/com.apple.SetupAssistant.plist"
+    mode: '0600'
+
+- name: Create .ssh
+  file:
+    path: "/Users/{{ ansible_user }}/.ssh"
+    state: directory
+    mode: '0700'
+
+- name: Ensure SSH keys are set for current user
+  lineinfile:
+    path: "/Users/{{ ansible_user }}/.ssh/authorized_keys"
+    create: true
+    line: "{{ item }}"
+    mode: 0644
+    state: present
+  loop: "{{ ssh_pubkeys }}"
+
+- name: Disable auto updates
+  become: true
+  community.general.osx_defaults:
+    domain: "{{ item.domain }}"
+    key: "{{ item.key }}"
+    type: bool
+    value: false
+  loop:
+    - { domain: com.apple.SoftwareUpdate, key: AllowPreReleaseInstallation }
+    - { domain: com.apple.SoftwareUpdate, key: AutomaticallyInstallAppUpdates }
+    - { domain: com.apple.SoftwareUpdate, key: AutomaticallyInstallMacOSUpdates }
+    - { domain: com.apple.SoftwareUpdate, key: AutomaticCheckEnabled }
+    - { domain: com.apple.SoftwareUpdate, key: AutomaticDownload }
+    - { domain: com.apple.SoftwareUpdate, key: CriticalUpdateInstall }
+    - { domain: com.apple.commerce, key: AutoUpdate }
+    - { domain: com.apple.commerce, key: AutoUpdateRestartRequired }
+  when: macos_disable_updates
+
+- name: Read dev tool security status
+  command: DevToolsSecurity -status
+  register: devtoolseccmd
+  changed_when: false
+
+- name: Enable Developer Mode
+  become: true
+  command: DevToolsSecurity -enable
+  when: '"Developer mode is currently enabled." not in devtoolseccmd.stdout'
+
+- name: Add info panel to clock in login window
+  become: true
+  community.general.osx_defaults:
+    domain: /Library/Preferences/com.apple.loginwindow
+    key: AdminHostInfo
+    type: string
+    value: HostName
+
+- name: Add keyboard input in login screen
+  become: true
+  community.general.osx_defaults:
+    domain: /Library/Preferences/com.apple.loginwindow
+    key: showInputMenu
+    type: string
+    value: true
+
+- name: Executing all handlers
+  meta: flush_handlers

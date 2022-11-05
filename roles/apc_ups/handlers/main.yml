@@ -1,0 +1,11 @@
+- name: "Restart apcupsd"
+  become: true
+  systemd:
+    state: restarted
+    name: apcupsd
+
+- name: "Restart xinetd"
+  become: true
+  systemd:
+    state: restarted
+    name: xinetd

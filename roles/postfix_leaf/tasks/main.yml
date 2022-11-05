@@ -1,0 +1,77 @@
+- module_defaults:
+    apt:
+      cache_valid_time: 86400
+  block:
+    - name: Add postfix
+      become: true
+      apt:
+        state: present
+        name:
+          - postfix
+          - libsasl2-2
+          - libsasl2-modules
+          - mailutils
+          - ca-certificates
+
+    - name: Remove exim4
+      become: true
+      apt:
+        state: absent
+        purge: true
+        name:
+          - exim4
+          - exim4-base
+
+    - name: Create Postfix SMTP auth config
+      become: true
+      copy:
+        dest: /etc/postfix/smtp_sasl_passwd
+        content: |
+          [{{ smtp_relay_host }}]:465     {{ smtp_username }}:{{ smtp_password }}
+        mode: 0600
+        owner: root
+        group: root
+      notify: "Refresh SMTP auth map"
+
+    - name: Create Postfix configuration
+      become: true
+      copy:
+        dest: /etc/postfix/main.cf
+        content: |
+          compatibility_level = 2
+          smtpd_banner = $myhostname ESMTP $mail_name (Debian/GNU)
+          biff = no
+          append_dot_mydomain = no
+          readme_directory = no
+          smtpd_use_tls=no
+          smtpd_relay_restrictions = permit_mynetworks permit_sasl_authenticated defer_unauth_destination
+          myhostname = {{ inventory_hostname }}
+          alias_maps = hash:/etc/aliases
+          alias_database = hash:/etc/aliases
+          mydestination = $myhostname, localhost.localdomain, localhost
+          relayhost = [{{ smtp_relay_host }}]:465
+          mynetworks = 127.0.0.0/8 [::ffff:127.0.0.0]/104 [::1]/128
+          mailbox_size_limit = 0
+          recipient_delimiter = +
+          inet_interfaces = loopback-only
+          inet_protocols = all
+          smtp_use_tls = yes
+          smtp_tls_session_cache_database = btree:${data_directory}/smtp_scache
+          smtp_sasl_password_maps = hash:/etc/postfix/smtp_sasl_passwd
+          smtp_sasl_auth_enable = yes
+          smtp_tls_security_level = encrypt
+          smtp_tls_wrappermode = yes
+          smtp_sasl_security_options = noanonymous
+        mode: 0600
+        owner: root
+        group: root
+      notify: "Restart Postfix"
+
+    - name: Add alias for root in aliases
+      become: true
+      lineinfile:
+        path: /etc/aliases
+        state: present
+        regexp: ^root
+        line: "root: {{ smtp_recipient }}"
+      notify: "Reload aliases"

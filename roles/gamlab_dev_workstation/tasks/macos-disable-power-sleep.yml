@@ -1,0 +1,16 @@
+- name: Check if power sleep policies have been applied
+  become: true
+  command: systemsetup -getcomputersleep
+  register: computersleep
+  changed_when: false
+
+- name: Disable power sleep and others for installation
+  become: true
+  command: "{{ item }}"
+  with_items:
+    - pmset -a sleep 0
+    - systemsetup -setcomputersleep Off
+    - pmset -a standbydelay 0
+    - pmset -a disablesleep 1
+    - pmset -a hibernatemode 0
+  when: '"Computer Sleep: Never" not in computersleep.stdout'

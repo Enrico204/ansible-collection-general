@@ -1,0 +1,7 @@
+- name: Install Flutter on Debian
+  include_tasks: "debian.yml"
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- name: Install Flutter on macOS
+  import_tasks: macos.yml
+  when: ansible_system == "Darwin" and ansible_distribution == "MacOSX"

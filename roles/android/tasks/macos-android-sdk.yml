@@ -1,0 +1,68 @@
+# Set brew path for M1 chips
+- name: Get brew path for M1
+  set_fact:
+    brewbin: /opt/homebrew/bin/
+  when: ansible_architecture == 'arm64'
+
+- name: Get brew path for amd64
+  set_fact:
+    brewbin: /usr/local/bin/
+  when: ansible_architecture == 'x86_64'
+
+- name: Install gradle
+  homebrew:
+    name: gradle
+    state: present
+
+- name: Installing Android SDK manager
+  homebrew_cask:
+    name: "android-commandlinetools"
+    state: present
+
+- name: Accepting all licenses
+  expect:
+    command: "{{ brewbin }}/sdkmanager --licenses"
+    responses:
+      'y/N': 'y'
+  environment:
+    JAVA_HOME: /Library/Java/JavaVirtualMachines/temurin-8.jdk/Contents/Home/
+
+- name: Installing Android SDK platforms and packages
+  expect:
+    command: "{{ brewbin }}/sdkmanager \"{{ item }}\""
+    responses:
+      'y/N': 'y'
+    timeout: 120
+  environment:
+    JAVA_HOME: /Library/Java/JavaVirtualMachines/temurin-8.jdk/Contents/Home/
+  loop:
+    - platform-tools
+    - build-tools;31.0.0
+    - platforms;android-30
+    - platforms;android-31
+
+    # TODO: get requirements from projects, enable only when ready to avoid space waste
+#    - name: Installing Intel HAXM accelerator
+#      homebrew_cask:
+#        name: intel-haxm
+#        state: present
+#      environment:
+#        SUDO_ASKPASS: "{{ ansible_user_dir }}/.ansible/bin/sudo_askpass.tmp.sh"
+#    - name: Installing Android Emulator
+#      expect:
+#        command: /usr/local/bin/sdkmanager "emulator"
+#        responses:
+#          'y/N': 'y'
+#        timeout: 120
+#    - name: Installing Android 6.0 Emulator image
+#      expect:
+#        command: /usr/local/bin/sdkmanager "system-images;android-23;google_apis;x86_64"
+#        responses:
+#          'y/N': 'y'
+#        timeout: 600
+#    - name: Installing Android 9.0 Emulator image
+#      expect:
+#        command: /usr/local/bin/sdkmanager "system-images;android-28;google_apis;x86_64"
+#        responses:
+#          'y/N': 'y'
+#        timeout: 600

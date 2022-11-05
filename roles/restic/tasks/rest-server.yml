@@ -1,0 +1,66 @@
+- name: Remove old playbook versions of rest-server
+  file:
+    path: /usr/local/bin/restic-rest-server
+    state: absent
+  when: ansible_os_family == 'Debian'
+
+- name: Add Netsplit repository
+  become: true
+  apt_repository:
+    filename: "netsplit"
+    repo: "deb [trusted=yes] https://deb.netsplit.it/{{ ansible_distribution_release }} ./"
+  when: ansible_os_family == 'Debian'
+
+- name: Install rest-server package
+  become: true
+  apt:
+    pkg:
+      - rest-server
+    state: present
+  when: ansible_os_family == 'Debian'
+
+- name: Install binary from GitHub
+  include_tasks: rest-server-dl.yml
+  when: ansible_os_family != 'Debian'
+
+- name: Create restic-rest-server systemd service
+  become: true
+  template:
+    src: restic-rest-server.service.j2
+    dest: "/etc/systemd/system/restic-rest-server.service"
+    owner: root
+    group: root
+    mode: '0600'
+
+- name: Reload systemd daemon, enable and start restic-rest-server service
+  become: true
+  systemd:
+    state: started
+    daemon_reload: true
+    name: restic-rest-server
+    enabled: true
+
+# Periodical check and prune script
+- name: Create restic check and prune script
+  become: true
+  template:
+    src: restic-check-and-prune.sh.j2
+    dest: /usr/local/sbin/restic-check-and-prune
+    owner: root
+    group: root
+    mode: '0700'
+
+- name: Remove old restic check and prune crontab file
+  become: true
+  file:
+    path: /etc/cron.d/restic-check-and-prune
+    state: absent
+
+- name: Create cron entry for restic check and prune
+  become: true
+  ansible.builtin.cron:
+    name: "restic-check-and-prune"
+    day: "1"
+    minute: "0"
+    hour: "12"
+    job: "/usr/local/sbin/restic-check-and-prune"

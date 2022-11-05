@@ -1,0 +1,14 @@
+- name: Restart Postfix
+  become: true
+  systemd:
+    state: restarted
+    name: postfix
+    enabled: true
+
+- name: Reload aliases
+  become: true
+  command: newaliases
+
+- name: Refresh SMTP auth map
+  become: true
+  command: postmap hash:/etc/postfix/smtp_sasl_passwd

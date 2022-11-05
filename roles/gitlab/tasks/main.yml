@@ -1,0 +1,53 @@
+- module_defaults:
+    apt:
+      cache_valid_time: 86400
+  block:
+    - name: Extract version from backup
+      import_tasks: extract-version-from-backup.yml
+      when: gitlab_bkfile is defined and gitlab_version is not defined
+
+    # Install GitLab
+    - name: Install requirements
+      become: true
+      apt:
+        pkg:
+          - gnupg
+          - openssh-server
+          - debian-archive-keyring
+          - apt-transport-https
+        state: present
+
+    - name: Add GitLab repo key
+      become: true
+      apt_key:
+        url: https://packages.gitlab.com/gpg.key
+        state: present
+
+    - name: Add GitLab repository
+      become: true
+      apt_repository:
+        repo: "deb https://packages.gitlab.com/gitlab/gitlab-ee/debian/ {{ ansible_distribution_release }} main"
+
+    - name: Install latest GitLab version
+      become: true
+      environment:
+        EXTERNAL_URL: "{{ gitlab_external_url }}"
+      apt:
+        state: present
+        pkg:
+          - gitlab-ee
+      when: gitlab_version is not defined
+
+    - name: Install specific GitLab version
+      become: true
+      environment:
+        EXTERNAL_URL: "{{ gitlab_external_url }}"
+      apt:
+        state: present
+        pkg:
+          - "gitlab-ee={{ gitlab_version }}.0"
+      when: gitlab_version is defined
+
+    - name: Restore from backup, if any
+      import_tasks: restore-backup.yml
+      when: gitlab_bkfile is defined and gitlab_bkcfg is defined

@@ -1,0 +1,13 @@
+- name: Install GoLang from chocolatey
+  win_chocolatey:
+    name:
+      - golang
+    state: present
+    version: "{{ go_version }}"
+
+- name: Set GOPRIVATE for all users
+  ansible.windows.win_environment:
+    state: present
+    name: GOPRIVATE
+    value: "{{ go_private }}"
+    level: machine

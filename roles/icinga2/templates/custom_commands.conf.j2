@@ -1,0 +1,164 @@
+object CheckCommand "mtk-snmp-disk" {
+    import "ipv4-or-ipv6"
+
+    command = [ "/usr/local/bin/check_mtk_snmp_disk.sh" ]
+
+    arguments = {
+            "-H" = {
+                    value = "$check_address$"
+                    description = "Host address"
+            }
+            "-C" = {
+                    value = "$snmp_community$"
+                    description ="SNMP community"
+            }
+            "-c" = {
+                    value = "$disk_critical$"
+                    description = "Disk critical percent"
+            }
+            "-w" = {
+                    value = "$disk_warning$"
+                    description = "Disk warning percent"
+            }
+    }
+}
+
+object CheckCommand "mtk-snmp-ram" {
+    import "ipv4-or-ipv6"
+
+    command = [ "/usr/local/bin/check_mtk_snmp_mem.sh" ]
+
+    arguments = {
+            "-H" = {
+                    value = "$check_address$"
+                    description = "Host address"
+            }
+            "-C" = {
+                    value = "$snmp_community$"
+                    description ="SNMP community"
+            }
+            "-c" = {
+                    value = "$ram_critical$"
+                    description = "RAM critical percent"
+            }
+            "-w" = {
+                    value = "$ram_warning$"
+                    description = "RAM warning percent"
+            }
+    }
+
+    vars.ram_critical = 90
+    vars.ram_warning = 70
+}
+
+object CheckCommand "snmp-env2" {
+    import "ipv4-or-ipv6"
+
+    command = [ "/usr/local/bin/check_snmp_env2.sh" ]
+
+    arguments = {
+            "-H" = {
+                    value = "$check_address$"
+                    description = "Host address"
+            }
+            "-C" = {
+                    value = "$snmp_community$"
+                    description ="SNMP community"
+            }
+            "-c" = {
+                    value = "$env_temp_critical$"
+                    description = "Temperature (°C) critical high value"
+            }
+            "-w" = {
+                    value = "$env_temp_warning$"
+                    description = "Temperature (°C) warning high value"
+            }
+            "-f" = {
+                    value = "$env_rpm_critical$"
+                    description = "Fan RPM critical low value"
+            }
+            "-g" = {
+                    value = "$env_rpm_warning$"
+                    description = "Fan RPM warning low value"
+            }
+    }
+}
+
+object CheckCommand "snmp-apt" {
+    import "ipv4-or-ipv6"
+
+    command = [ "/usr/local/bin/check_snmp_apt.sh" ]
+
+    arguments = {
+            "-H" = {
+                    value = "$check_address$"
+                    description = "Host address"
+            }
+            "-C" = {
+                    value = "$snmp_community$"
+                    description ="SNMP community"
+            }
+    }
+}
+
+object CheckCommand "snmp-dnf" {
+    import "ipv4-or-ipv6"
+
+    command = [ "/usr/local/bin/check_snmp_dnf.sh" ]
+
+    arguments = {
+            "-H" = {
+                    value = "$check_address$"
+                    description = "Host address"
+            }
+            "-C" = {
+                    value = "$snmp_community$"
+                    description ="SNMP community"
+            }
+    }
+}
+
+object CheckCommand "snmp-synology" {
+    import "ipv4-or-ipv6"
+
+    command = [ "/usr/local/bin/check_snmp_synology.sh" ]
+
+    arguments = {
+            "-H" = {
+                    value = "$check_address$"
+                    description = "Host address"
+            }
+            "-C" = {
+                    value = "$snmp_community$"
+                    description ="SNMP community"
+            }
+            "-p" = {
+                    set_if = "$syno_cpu_fan$"
+                    description ="CPU Fan check"
+            }
+            "-o" = {
+                    set_if = "$syno_sys_fan$"
+                    description ="System fan check"
+            }
+            "-i" = {
+                    set_if = "$syno_upgrade_check$"
+                    description ="Upgrade check"
+            }
+            "-u" = {
+                    set_if = "$syno_temp$"
+                    description ="Temperature check"
+            }
+            "-y" = {
+                    set_if = "$syno_status$"
+                    description ="Status check"
+            }
+            "-t" = {
+                    set_if = "$syno_power$"
+                    description ="Power status check"
+            }
+    }
+}
+
+object CheckCommand "true" {
+    command = [ "/usr/bin/true" ]
+}

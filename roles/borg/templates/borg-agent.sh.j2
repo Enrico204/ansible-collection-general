@@ -1,0 +1,120 @@
+#!/usr/bin/env bash
+set -eo pipefail
+
+export BORG_REPO='{{ borg_agent_base_repository }}/{{ inventory_hostname }}'
+export BORG_PASSPHRASE='{{ borg_agent_password }}'
+export BORG_RELOCATED_REPO_ACCESS_IS_OK=yes
+export BORG_LOGGING="--verbose"
+export BORG_LOGGING_CREATE="--verbose -p --list --stats"
+
+export PATH="$PATH:/usr/bin/:/usr/local/bin/"
+
+if [ "$1" == "-cron" ]; then
+{% if borg_agent_delayed_start_max > 0 %}
+	sleep $(($RANDOM % {{ borg_agent_delayed_start_max }}))
+{% endif %}
+
+    BORG_LOGGING="--warning"
+    BORG_LOGGING_CREATE="--warning"
+
+    # Redirect stdout and stderr to syslog
+    exec 3>&1 4>&2
+    exec 1> >(logger -t borg-agent -p local0.info) 2> >(logger -t borg-agent -p local0.err)
+fi
+
+{% if borg_agent_server_hostkeys is defined %}
+export BORG_RSH="ssh -o StrictHostKeyChecking=yes -o UserKnownHostsFile=/tmp/backnode.hostkeys"
+umask 0022
+cat <<EOF > /tmp/backnode.hostkeys
+{% for key in borg_agent_server_hostkeys %}
+{{ key }}
+{% endfor %}
+EOF
+{% endif %}
+
+eval $(ssh-agent -s | grep -v echo)
+
+{% if borg_agent_ssh_private_key is defined %}
+# Borg key
+ssh-add - 2>/dev/null <<EOF
+{{ borg_agent_ssh_private_key }}
+EOF
+{% endif %}
+
+# some helpers and error handling:
+exithandler() {
+    printf "Backup interrupted\n" >&2;
+    ssh-add -D 2> /dev/null;
+    kill $SSH_AGENT_PID;
+    exit 2;
+}
+trap exithandler INT TERM
+
+set +e
+borg $BORG_LOGGING info
+if [ $? -ne 0 ]; then
+    set -e
+    # Repo doesn't exists? Try to create it
+    printf "Try to create borg repo\n"
+    borg init $BORG_LOGGING --encryption=repokey
+fi
+set -e
+
+## Pre-backup script
+
+{{ borg_agent_pre | default('') }}
+
+## END pre-backup script
+
+printf "Starting borg backup\n"
+
+IONICE="ionice -c 3"
+if ! command -v ionice &> /dev/null
+then
+	IONICE=""
+fi
+
+nice -n 19 $IONICE borg create \
+    $BORG_LOGGING_CREATE            \
+    --filter AME                    \
+    --compression lz4               \
+    --exclude-caches                \
+    --one-file-system               \
+{% for excl in borg_agent_exclude %}
+	--exclude '{{ excl }}' \
+{% endfor %}
+{% for excl in borg_agent_exclude_basic %}
+	--exclude '{{ excl }}' \
+{% endfor %}
+    --exclude-if-present 'CACHEDIR.TAG' \
+    --exclude-if-present '.nobackup'    \
+    {{ borg_agent_custom_opts }}        \
+                                        \
+    ::'{hostname}-{now}'                \
+    {% for path in borg_agent_backup_paths %} {{ path }} {% endfor %}
+    
+
+## Post-backup script
+
+{{ borg_agent_post | default('') }}
+
+## END post-backup script
+
+printf "Pruning repository\n"
+
+# Use the `prune` subcommand to maintain 7 daily, 4 weekly and 6 monthly
+# archives of THIS machine. The '{hostname}-' prefix is very important to
+# limit prune's operation to this machine's archives and not apply to
+# other machines' archives also:
+
+borg prune          \
+    $BORG_LOGGING                  \
+    --prefix '{hostname}-'          \
+    --keep-daily    7               \
+    --keep-weekly   4               \
+    --keep-monthly  6               \
+
+ssh-add -D 2> /dev/null
+kill $SSH_AGENT_PID
+
+exit 0

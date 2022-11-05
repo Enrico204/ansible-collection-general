@@ -1,0 +1,21 @@
+- name: "Create new borg agent executable for service {{ service.name }}"
+  become: true
+  template:
+    src: borg-agent-services.sh.j2
+    dest: "/usr/local/sbin/borg-agent-{{ service.name }}"
+    owner: root
+    group: root
+    mode: '0700'
+  when: (service.state | default('present')) == 'present'
+
+- name: "Create cronjob for backup for service {{ service.name }}"
+  become: true
+  ansible.builtin.cron:
+    name: "borg backup service {{ service.name }}"
+    minute: "{{ service.when.minute | default(0) }}"
+    hour: "{{ service.when.hour | default(2) }}"
+    weekday: "{{ service.when.weekday | default('*') }}"
+    month: "{{ service.when.month | default('*') }}"
+    day: "{{ service.when.day | default('*') }}"
+    job: "/usr/local/sbin/borg-agent-{{ service.name }} -cron"
+  when: (service.state | default('present')) == 'present'

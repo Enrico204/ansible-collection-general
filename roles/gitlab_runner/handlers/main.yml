@@ -1,0 +1,9 @@
+- name: GitLab restart (Linux)
+  become: true
+  systemd:
+    state: restarted
+    name: gitlab-runner
+    enabled: true
+
+- name: GitLab restart (macOS)
+  command: brew services restart gitlab-runner

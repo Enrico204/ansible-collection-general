@@ -1,0 +1,63 @@
+- module_defaults:
+    apt:
+      cache_valid_time: 86400
+  block:
+    - name: Installing OpenJDK
+      become: true
+      apt:
+        state: present
+        pkg:
+          - openjdk-11-jdk
+      when: "'jdk11' in jdk_versions"
+
+    - name: Installing OpenJDK
+      become: true
+      apt:
+        state: present
+        pkg:
+          - openjdk-17-jdk
+      when: "'jdk17' in jdk_versions"
+
+    # # Install Temurin 8
+    # - name: Check Temurin 8
+    #   stat:
+    #     path: "/usr/lib/jvm/jdk{{ openjdk8_version }}"
+    #   register: temurin8jdk
+
+    # - name: Download Temurin 8
+    #   get_url:
+    #     url: "https://github.com/adoptium/temurin8-binaries/releases/download/jdk
+    # {{ openjdk8_version }}/OpenJDK8U-jdk_x64_linux_hotspot_{{ openjdk8_version | replace('-', '') }}.tar.gz"
+    #     dest: /tmp/temurinjdk8.tar.gz
+    #     mode: '0600'
+    #     checksum: "sha256:https://github.com/adoptium/temurin8-binaries/releases/download/jdk
+    # {{ openjdk8_version }}/OpenJDK8U-jdk_x64_linux_hotspot_{{ openjdk8_version | replace('-', '') }}.tar.gz.sha256.txt"
+    #   when: not temurin8jdk.stat.exists
+
+    # - name: Installing Temurin 8
+    #   unarchive:
+    #     src: /tmp/temurinjdk8.tar.gz
+    #     remote_src: true
+    #     dest: /usr/lib/jvm/
+    #   when: not temurin8jdk.stat.exists
+
+    - name: Adding AdoptOpenJDK repo key
+      become: true
+      apt_key:
+        url: https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public
+        state: present
+      when: "'jdk8' in jdk_versions"
+
+    - name: Adding AdoptOpenJDK repositories
+      become: true
+      apt_repository:
+        repo: "deb https://adoptopenjdk.jfrog.io/adoptopenjdk/deb {{ ansible_distribution_release }} main"
+      when: "'jdk8' in jdk_versions"
+
+    - name: Installing AdoptOpenJDK 8
+      become: true
+      apt:
+        state: present
+        pkg:
+          - adoptopenjdk-8-hotspot
+      when: "'jdk8' in jdk_versions"

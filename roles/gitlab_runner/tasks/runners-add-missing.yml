@@ -1,0 +1,35 @@
+- name: Get local runners
+  shell: >
+    awk '$1=="[[runners]]" { RUNNER="" }; $1=="name" && RUNNER=="" { RUNNER=$3; print $3 };' {{ gitlab_runner_cfgpath }} | tr -d '"'
+  register: localrunners
+  changed_when: false
+
+- name: Prepare list of configured runners
+  set_fact:
+    configured_runners: "{{ [inventory_hostname~'-'] | product(configured_runners_generic) | map('join') | list }}"
+  vars:
+    configured_runners_generic: "{{ runners | map(attribute='name') }}"
+
+- name: "Register runner instance"
+  command: >
+    gitlab-runner register
+    -r "{{ runner_reg_token }}"
+    -n -u "{{ runner_reg_url }}"
+    --executor "{{ runner_instance.executor }}"
+    --locked="false"
+    --paused="true"
+    --tag-list "{{ runner_instance.tags | join(",") }}"
+    --name "{{ inventory_hostname }}-{{ runner_instance.name }}"
+    --output-limit {{ runner_instance.output_limit | default(32768) }}
+    {% if runner_instance.executor == "docker" -%}
+    --docker-image "{{ runner_instance.docker_default_image | default('debian:latest') }}"
+    --docker-allowed-pull-policies "always,if-not-present"
+    {% endif %}
+    {% if runner_instance.executor == "virtualbox" %}
+    --virtualbox-base-name "{{ runner_instance.vbox_vmname }}"
+    --ssh-user "{{ runner_instance.ssh_user }}"
+    --ssh-password "{{ runner_instance.ssh_pass }}"
+    {% endif %}
+  vars:
+    runner_instance: "{{ runners | selectattr('name', 'in', item) | first }}"
+  loop: "{{ configured_runners | difference(localrunners.stdout_lines) }}"

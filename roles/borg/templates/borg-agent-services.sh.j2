@@ -1,0 +1,192 @@
+#!/usr/bin/env bash
+set -eo pipefail
+
+export BORG_REPO='{{ borg_agent_base_repository }}/{{ service.name }}'
+export BORG_PASSPHRASE='{{ borg_agent_password }}'
+export BORG_RELOCATED_REPO_ACCESS_IS_OK=yes
+export BORG_LOGGING="--verbose"
+export BORG_LOGGING_CREATE="--verbose -p --list --stats"
+
+export PATH="$PATH:/usr/bin/:/usr/local/bin/"
+
+if [ "$1" == "-cron" ]; then
+{% if borg_agent_delayed_start_max > 0 %}
+	sleep $(($RANDOM % {{ borg_agent_delayed_start_max }}))
+{% endif %}
+
+    BORG_LOGGING="--warning"
+    BORG_LOGGING_CREATE="--warning"
+
+    # Redirect stdout and stderr to syslog
+    exec 3>&1 4>&2
+    exec 1> >(logger -t borg-agent -p local0.info) 2> >(logger -t borg-agent -p local0.err)
+fi
+
+{% if borg_agent_server_hostkeys is defined %}
+export BORG_RSH="ssh -o StrictHostKeyChecking=yes -o UserKnownHostsFile=/tmp/backnode.hostkeys"
+umask 0022
+cat <<EOF > /tmp/backnode.hostkeys
+{% for key in borg_agent_server_hostkeys %}
+{{ key }}
+{% endfor %}
+EOF
+{% endif %}
+
+eval $(ssh-agent -s | grep -v echo)
+
+{% if borg_agent_ssh_private_key is defined %}
+# Borg key
+ssh-add - 2>/dev/null <<EOF
+{{ borg_agent_ssh_private_key }}
+EOF
+{% endif %}
+
+# some helpers and error handling:
+exithandler() {
+    printf "Backup interrupted\n" >&2;
+    ssh-add -D 2> /dev/null;
+    kill $SSH_AGENT_PID;
+    exit 2;
+}
+trap exithandler INT TERM
+
+set +e
+borg $BORG_LOGGING info
+if [ $? -ne 0 ]; then
+    set -e
+    # Repo doesn't exists? Try to create it
+    printf "Try to create borg repo\n"
+    borg init $BORG_LOGGING --encryption=repokey
+fi
+set -e
+
+printf "Starting borg backup\n"
+
+IONICE="ionice -c 3"
+if ! command -v ionice &> /dev/null
+then
+	IONICE=""
+fi
+
+{% if service.type == 'mysql' %}
+# Use MySQLdump for dumping one or more databases to stdout
+nice -n 19 $IONICE mysqldump -h "{{ service.host }}" -P {{ service.port | default(3306) }} -u "{{ service.user }}" -p"{{ service.pass }}" \
+    --single-transaction --opt -R \
+    {% if service.databases is defined %} --databases {{ service.databases | join(" ") }} {% else %} --all-databases {% endif %} \
+    | sed -e 's/^CREATE DEFINER=.* \(FUNCTION\|PROCEDURE\)/CREATE \1/' \
+    | borg create \
+    $BORG_LOGGING_CREATE            \
+    --files-cache=disabled          \
+    --filter AME                    \
+    --compression lz4               \
+    --stdin-name "{{ service.filename | default('stdin.sql') }}" \
+    {{ borg_agent_custom_opts }}    \
+                                    \
+    ::'{{ service.name }}-{now}'    \
+    -
+
+{% elif service.type == 'pgsql' %}
+# PostgreSQL connection string need to be specified in a file named `.pgpass`. So, only one process at time can run
+# Use flock to acquire a lock, fail after 4 hours
+umask 0077
+exec 200>/tmp/pgpass-lock
+flock -w 14400 200
+
+# Create pgpass
+remove_pgpass() { rm -f ~/.pgpass; }
+trap remove_pgpass EXIT
+printf "%s:%d:%s:%s:%s" "{{ service.host }}" {{ service.port | default(5432) }} "{{ service.database }}" "{{ service.user }}" "{{ service.pass }}" > ~/.pgpass
+
+PGOPTIONS='--client-min-messages=warning' nice -n 19 $IONICE \
+    pg_dump -h "{{ service.host }}" -p {{ service.port | default(5432) }} -U "{{ service.user }}" \
+    --compress=0 -Fc {{ service.database }} \
+    | borg create \
+    $BORG_LOGGING_CREATE            \
+    --files-cache=disabled          \
+    --filter AME                    \
+    --compression lz4               \
+    --stdin-name "{{ service.filename | default('stdin.bak') }}" \
+    {{ borg_agent_custom_opts }}    \
+                                    \
+    ::'{{ service.name }}-{now}'    \
+    -
+
+remove_pgpass
+flock -u 200
+
+{% elif service.type == 'mikrotik' %}
+# Mikrotik requires an SSH key
+ssh-add - 2>/dev/null <<EOF
+{{ service.ssh_privkey }}
+EOF
+
+ssh -o StrictHostKeyChecking=no \
+    -p {{ service.port | default(22) }} \
+    "{{ service.user }}@{{ service.host }}" \
+    "/export"                       \
+    | borg create    \
+    $BORG_LOGGING_CREATE            \
+    --files-cache=disabled          \
+    --filter AME                    \
+    --compression lz4               \
+    --stdin-name "{{ service.filename | default('stdin.rsc') }}" \
+    {{ borg_agent_custom_opts }}    \
+                                    \
+    ::'{{ service.name }}-{now}'    \
+    -
+
+{% elif service.type == 'redis' %}
+redis-cli -h "{{ service.host }}" \
+    -p {{ service.port | default(6379) }} \
+    -a "{{ service.pass }}" \
+    --rdb -                         \
+    2>/dev/null                     \
+    | borg create    \
+    $BORG_LOGGING_CREATE            \
+    --files-cache=disabled          \
+    --filter AME                    \
+    --compression lz4               \
+    --stdin-name "{{ service.filename | default('stdin') }}" \
+    {{ borg_agent_custom_opts }}    \
+                                    \
+    ::'{{ service.name }}-{now}'    \
+    -
+
+{% elif service.type == 'portainer' %}
+curl -k -s \
+    -H 'X-API-Key: {{ service.apikey }}' \
+    -H 'Content-Type: application/json' \
+    -d '{}' \
+    -X POST \
+    {{ service.proto | default('https') }}://{{ service.host }}:{{ service.port | default(9443) }}/api/backup \
+    | borg create    \
+    $BORG_LOGGING_CREATE            \
+    --files-cache=disabled          \
+    --filter AME                    \
+    --compression lz4               \
+    --stdin-name "{{ service.filename | default('stdin.tar.gz') }}" \
+    {{ borg_agent_custom_opts }}    \
+                                    \
+    ::'{{ service.name }}-{now}'    \
+    -
+{% endif %}
+    
+
+printf "Pruning repository\n"
+
+# Use the `prune` subcommand to maintain 7 daily, 4 weekly and 6 monthly
+# archives of THIS machine. The '{hostname}-' prefix is very important to
+# limit prune's operation to this machine's archives and not apply to
+# other machines' archives also:
+
+borg prune          \
+    $BORG_LOGGING                  \
+    --prefix '{{ service.name }}-' \
+    --keep-daily    7              \
+    --keep-weekly   4              \
+    --keep-monthly  6              \
+
+ssh-add -D 2> /dev/null
+kill $SSH_AGENT_PID
+
+exit 0

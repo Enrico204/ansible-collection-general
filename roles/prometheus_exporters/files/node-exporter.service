@@ -1,0 +1,13 @@
+[Unit]
+Description=Node-exporter
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/tmp/
+ExecStart=/usr/bin/node_exporter
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,43 @@
+- name: 'Prepare {{ inventory_hostname }} --> {{ peer["key"] }} command parts'
+  set_fact:
+    # Use the specified endpoint_host if specified and not empty, skip directly if empty, otherwise fallback to inventory_hostname
+    wgpeerhost: >-
+      {{ "endpoint-address=" ~ item.endpoint_host if "endpoint_host" in item and item.endpoint_host != ""
+      else ("endpoint-address=" ~ peer["value"]["inventory_hostname"] if "endpoint_host" not in item
+      else "") }}
+    # Use the specified endpoint_port if specified and not empty, otherwise use listen_port if specified, otherwise fallback to wireguard_default_keepalive
+    wgpeerport: >-
+      {{ "endpoint-port=" ~ item.endpoint_port if "endpoint_port" in item
+      else ("endpoint-port=" ~ item.listen_port if "listen_port" in item
+      else "endpoint-port=" ~ wireguard_default_port) }}
+    # Use keepalive if specified, otherwise use the wireguard_default_keepalive
+    wgpeerkeepalive: >-
+      {{ "persistent-keepalive=" ~ item.keepalive if "keepalive" in item
+      else "persistent-keepalive=" ~ wireguard_default_keepalive }}
+    wgpeerallowed: '{{ item.vpn_ip }}/32{{ "," ~ item.allowed|join(",") if "allowed" in item else "" }}'
+
+- name: 'Prepare peer {{ inventory_hostname }} --> {{ peer["key"] }} command'
+  set_fact:
+    wgpeercmd: comment="{{ peer["key"] }}" allowed-address="{{ wgpeerallowed }}" {{ wgpeerkeepalive }} {{ wgpeerhost }} {{ wgpeerport }}
+  when: wgpeerhost | length > 0
+
+- name: 'Prepare peer {{ inventory_hostname }} --> {{ peer["key"] }} command (roaming)'
+  set_fact:
+    wgpeercmd: comment="{{ peer["key"] }}" allowed-address="{{ wgpeerallowed }}" {{ wgpeerkeepalive }}
+  when: wgpeerhost | length == 0
+
+- name: 'Add peer {{ inventory_hostname }} --> {{ peer["key"] }} if they does not exists'
+  community.network.routeros_command:
+    commands:
+      - /interface/wireguard/peers/add interface={{ item.name }} public-key="{{ item.pubkey }}" {{ wgpeercmd }}
+  register: command_result
+
+- name: 'Update peer {{ inventory_hostname }} --> {{ peer["key"] }} settings'
+  community.network.routeros_command:
+    commands:
+      - /interface/wireguard/peers/set [find public-key="{{ item.pubkey }}"] interface={{ item.name }} {{ wgpeercmd }}
+  register: command_result
+  failed_when: >-
+    "failure:" in command_result.stdout[0]
+    or (command_result.stdout | length > 1 and "syntax error" in command_result.stdout[1])
+    or "expected end of" in command_result.stdout[0]

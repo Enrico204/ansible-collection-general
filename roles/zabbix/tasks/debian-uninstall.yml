@@ -1,0 +1,25 @@
+- name: Uninstall zabbix
+  become: true
+  apt:
+    pkg:
+      - zabbix-agent
+    state: absent
+    purge: true
+
+- name: Uninstall zabbix repository
+  become: true
+  apt:
+    pkg:
+      - zabbix-release
+    state: absent
+    purge: true
+
+- name: Remove zabbix config
+  become: true
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/zabbix/
+    - /var/log/zabbix
+    - /etc/apt/sources.list.d/zabbix.list

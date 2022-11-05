@@ -1,0 +1,15 @@
+- name: Restart smartctl exporter
+  become: true
+  systemd:
+    state: restarted
+    name: exporter-smartctl
+    daemon_reload: true
+    enabled: true
+
+- name: Restart node exporter
+  become: true
+  systemd:
+    state: restarted
+    name: exporter-smartctl
+    daemon_reload: true
+    enabled: true

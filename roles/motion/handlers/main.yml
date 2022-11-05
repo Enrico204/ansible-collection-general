@@ -1,0 +1,14 @@
+- name: Restart motion
+  become: true
+  systemd:
+    state: restarted
+    name: motion
+    enabled: true
+
+- name: Restart caddy-extended
+  become: true
+  systemd:
+    state: restarted
+    daemon_reload: true
+    name: caddy-extended
+    enabled: true

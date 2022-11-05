@@ -1,0 +1,40 @@
+- name: Copying main background
+  copy:
+    src: "{{ background_image }}"
+    dest: /opt/background.png
+    owner: root
+    group: root
+    mode: 0644
+  when: background_image is defined
+
+- name: Set background default for XFCE4
+  template:
+    src: xfce4-desktop.xml.j2
+    dest: /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml
+    owner: root
+    group: root
+    mode: 0644
+  when: background_image is defined
+
+- name: Copying LightDM settings
+  copy:
+    content: |
+      [greeter]
+      background=/opt/background.png
+    dest: /etc/lightdm/lightdm-gtk-greeter.conf
+    owner: root
+    group: root
+    mode: 0644
+  when: background_image is defined
+  notify: ["Restart lightdm"]
+
+- name: Git config
+  become: true
+  copy:
+    content: |
+      [pull]
+        ff = only
+    dest: /etc/gitconfig
+    owner: root
+    group: root
+    mode: "0644"

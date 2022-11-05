@@ -1,0 +1,17 @@
+android_sdk_build_tools: 32.0.0
+# Android SDK version from the website
+android_sdk_cli_version: "7583922"
+android_sdk_cli_sha256: "124f2d5115eee365df6cf3228ffbca6fc3911d16f8025bebd5b1c6e2fcfa7faf"
+android_sdk_packages: ["platforms;android-32"]
+android_sdk_allusers: true
+android_sdk_basedir: "/opt/android-sdk"
+
+# This build ID is found inside the build.txt (inside the ZIP), version from the URL
+android_studio_build: "AI-203.7717.56.2031.7935034"
+android_studio_version: "2020.3.1.26"
+android_studio_sha256: "344d858235ed5d3095ac25916a4a8f8730069f76e5a5fd0eba02522af88f541b"
+android_studio_basedir: "/opt/android-studio"
+android_studio_allusers: true
+
+install_sdk: true
+install_studio: false

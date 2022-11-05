@@ -1,0 +1,1 @@
+console=serial0,115200 console=tty1 root=/dev/nfs nfsroot={{ ansible_default_ipv4['address'] }}:/srv/nfs/raspi-{{ item.id }},soft,nocto,ac,nfsvers=3 rw ip=dhcp rootwait elevator=deadline panic=10

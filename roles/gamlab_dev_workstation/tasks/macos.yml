@@ -1,0 +1,39 @@
+- name: Disable power sleep
+  import_tasks: macos-disable-power-sleep.yml
+
+- name: Basic macOS dev settings
+  import_tasks: macos-prepare.yml
+
+- name: Install XCode
+  import_tasks: macos-xcode.yml
+  when: macos_xcode_url != ""
+
+- name: Install common build tools
+  import_tasks: macos-buildenv.yml
+  when: build_tools
+
+- name: Install common build graphical tools
+  import_tasks: macos-buildenv-interactive.yml
+  when: x11
+
+- name: Get AppleWWDRCAG3.cer
+  get_url:
+    url: https://www.apple.com/certificateauthority/AppleWWDRCAG3.cer
+    dest: /tmp/AppleWWDRCAG3.cer
+
+- name: Save current CA access settings
+  become: true
+  shell: security authorizationdb read com.apple.trust-settings.admin > /tmp/rights
+  changed_when: false
+
+- name: Enable accessing to trust settings
+  become: true
+  command: security authorizationdb write com.apple.trust-settings.admin allow
+
+- name: Add trusted WWDRCA G3
+  command: security add-trusted-cert -d -r unspecified -k ~/Library/Keychains/login.keychain-db /tmp/AppleWWDRCAG3.cer
+
+- name: Restore previous CA access settings
+  become: true
+  shell: security authorizationdb write com.apple.trust-settings.admin < /tmp/rights
+  changed_when: false

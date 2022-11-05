@@ -1,0 +1,109 @@
+- name: Create ftpd dir
+  become: true
+  file:
+    path: "{{ pxe_storage }}/tftp/"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+# If the Debian installer was already de-compressed, skip download
+- name: Check if the Debian netboot.tar.gz was already installed
+  stat:
+    path: "{{ pxe_storage }}/tftp/debian-installer"
+  register: debian_installer_dir
+
+- name: Get checksums for Debian netboot
+  uri:
+    url: "https://deb.debian.org/debian/dists/bullseye/main/installer-amd64/current/images/SHA256SUMS"
+    return_content: true
+  register: debian_checksums
+  when: not debian_installer_dir.stat.exists
+
+- name: Extract checksums for Debian netboot
+  set_fact:
+    netboot_checksum: "{{ debian_checksums.content | regex_search('^([A-Za-z0-9]+)\\s+./netboot/netboot.tar.gz$', '\\1', multiline=True) }}"
+  when: not debian_installer_dir.stat.exists
+
+- name: Download Debian netboot.tar.gz
+  become: true
+  get_url:
+    url: "https://deb.debian.org/debian/dists/bullseye/main/installer-amd64/current/images/netboot/netboot.tar.gz"
+    dest: "/tmp/netboot.tar.gz"
+    checksum: "sha256:{{ netboot_checksum }}"
+  when: not debian_installer_dir.stat.exists
+
+- name: Extract Debian netboot.tar.gz
+  become: true
+  unarchive:
+    src: /tmp/netboot.tar.gz
+    dest: "{{ pxe_storage }}/tftp/"
+    remote_src: true
+  when: not debian_installer_dir.stat.exists
+
+- name: Remove temporary netboot.tar.gz
+  file:
+    path: /tmp/netboot.tar.gz
+    state: absent
+
+# Debian preseed
+- name: Copy Debian preseed files
+  become: true
+  copy:
+    src: "{{ item.path }}"
+    dest: "{{ pxe_storage }}/tftp/preseed_{{ item.tag }}.cfg"
+    owner: root
+    group: root
+    mode: '0644'
+  loop: "{{ pxe_debian_preseeds }}"
+
+- name: Calculate preseed files MD5 for Debian Installer
+  become: true
+  stat:
+    path: "{{ pxe_storage }}/tftp/preseed_{{ item.tag }}.cfg"
+    checksum_algorithm: md5
+  loop: "{{ pxe_debian_preseeds }}"
+  register: preseed_files_infos
+
+# Check if pxelinux.cfg is a link. If so, we need to remove it and write our configuration
+- name: Check if pxelinux.cfg is a link
+  stat:
+    path: "{{ pxe_storage }}/tftp/pxelinux.cfg"
+  register: debian_pxelinux_cfg
+
+- name: Unlink pxelinux.cfg
+  become: true
+  file:
+    path: "{{ pxe_storage }}/tftp/pxelinux.cfg"
+    state: absent
+  when: debian_pxelinux_cfg.stat.islnk
+
+- name: Create PXELinux config dir
+  become: true
+  file:
+    path: "{{ pxe_storage }}/tftp/pxelinux.cfg"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Create default PXELinux config
+  become: true
+  template:
+    src: pxelinux.cfg.j2
+    dest: "{{ pxe_storage }}/tftp/pxelinux.cfg/default"
+    owner: root
+    group: root
+    mode: '0644'
+
+# Finish
+- name: Download netboot.xyz files
+  become: true
+  get_url:
+    url: "https://boot.netboot.xyz/ipxe/{{ item }}"
+    dest: "{{ pxe_storage }}/tftp/{{ item }}"
+    checksum: "sha256:https://boot.netboot.xyz/ipxe/netboot.xyz-sha256-checksums.txt"
+  loop:
+    - netboot.xyz.kpxe
+    - netboot.xyz-undionly.kpxe
+    - netboot.xyz.efi

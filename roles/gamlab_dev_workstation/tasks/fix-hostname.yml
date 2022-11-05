@@ -1,0 +1,50 @@
+# Linux
+- name: Change the hostname to our standard
+  become: true
+  hostname:
+    name: "{{ inventory_hostname }}"
+  when: ansible_system == "Linux"
+
+- name: Fix /etc/hosts removing the old hostname associated with the IP address
+  become: true
+  lineinfile:
+    state: absent
+    dest: /etc/hosts
+    regexp: "^{{ ansible_default_ipv4.address }}"
+  when: ansible_system == "Linux"
+
+- name: Fix /etc/hosts removing the old hostname for localhost
+  become: true
+  lineinfile:
+    state: present
+    dest: /etc/hosts
+    line: "127.0.1.1 {{ inventory_hostname }}  {{ ansible_hostname }}"
+    regexp: "^127.0.1.1"
+  when: ansible_system == "Linux"
+
+# macOS
+- name: Check computer name
+  become: true
+  command: scutil --get ComputerName
+  register: check_computer_name
+  when: ansible_system == "Darwin" and ansible_distribution == "MacOSX"
+  changed_when: false
+
+- name: Set computer name
+  command: "{{ item }}"
+  become: true
+  with_items:
+    - scutil --set ComputerName "{{ inventory_hostname_short }}"
+    - scutil --set HostName "{{ inventory_hostname_short }}"
+    - scutil --set LocalHostName "{{ inventory_hostname_short }}"
+    - defaults write /Library/Preferences/SystemConfiguration/com.apple.smb.server NetBIOSName -string "{{ inventory_hostname_short }}"
+  when: 'ansible_system == "Darwin" and ansible_distribution == "MacOSX" and check_computer_name.stdout != inventory_hostname_short'
+  notify: "Reboot"
+
+# Windows
+# TODO: check computer name
+- name: Set computer name
+  ansible.windows.win_powershell:
+    script: |
+      Rename-Computer -ComputerName {{ inventory_hostname_short }} -Force
+  when: ansible_system == "Win32NT" and "Microsoft Windows 10" in ansible_distribution

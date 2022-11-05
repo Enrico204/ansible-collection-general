@@ -1,0 +1,50 @@
+- module_defaults:
+    apt:
+      cache_valid_time: 86400
+  block:
+    - name: Install dnsmasq
+      become: true
+      apt:
+        state: present
+        pkg:
+          - dnsmasq
+
+    - name: Create dnsmasq config
+      become: true
+      template:
+        src: dnsmasq.conf.j2
+        dest: /etc/dnsmasq.conf
+        mode: 0600
+        owner: root
+        group: root
+      notify: "Restart dnsmasq"
+
+    # Stubby (DoT/DoH)
+    - name: Install stubby
+      become: true
+      apt:
+        state: present
+        pkg:
+          - stubby
+      when: nextdns_id is defined
+
+    - name: Create stubby config
+      become: true
+      template:
+        src: stubby.yml.j2
+        dest: /etc/stubby/stubby.yml
+        mode: 0644
+        owner: root
+        group: root
+      when: nextdns_id is defined
+      notify: "Restart stubby"
+
+    # PXE
+    - name: Prepare for PXE
+      import_tasks: pxe.yml
+      when: pxe
+
+    # PXE for Raspberry Pi
+    - name: Prepare for RPi PXE
+      import_tasks: pxe_rpi.yml
+      when: pxe_rpi | length > 0

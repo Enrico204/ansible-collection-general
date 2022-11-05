@@ -1,0 +1,24 @@
+# Debian support
+- name: Set GitLab runner config path fo Debian
+  set_fact:
+    gitlab_runner_cfgpath: "/etc/gitlab-runner/config.toml"
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- name: Install GitLab runner on Debian
+  include_tasks: "debian.yml"
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+# macOS support
+- name: Set GitLab runner config path fo macOS
+  set_fact:
+    gitlab_runner_cfgpath: "~/.gitlab-runner/config.toml"
+  when: ansible_system == "Darwin" and ansible_distribution == "MacOSX"
+
+- name: Install GitLab runner on macOS
+  import_tasks: macos.yml
+  when: ansible_system == "Darwin" and ansible_distribution == "MacOSX"
+
+
+- name: Configure GitLab runners
+  import_tasks: runners.yml
+  when: runners | length > 0

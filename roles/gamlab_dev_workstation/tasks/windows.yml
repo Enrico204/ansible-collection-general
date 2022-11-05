@@ -1,0 +1,70 @@
+- name: Enable RDP
+  win_command: reg add "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Terminal Server" /v fDenyTSConnections /t REG_DWORD /d 0 /f
+
+- name: Open RDP port in firewall
+  win_command: netsh advfirewall firewall set rule group="remote desktop" new enable=yes
+
+- name: Disable Hibernation
+  win_command: "{{ item }}"
+  loop:
+    - powercfg /change standby-timeout-ac 0
+    - powercfg /change hibernate-timeout-ac 0
+
+- name: Disable telemetry scheduled task
+  win_command: "{{ item }}"
+  loop:
+    - schtasks /change /disable /tn "\Microsoft\Windows\Application Experience\Microsoft Compatibility Appraiser"
+    - reg add "HKLM\Software\Policies\Microsoft\Windows\DataCollection" /v "AllowTelemetry" /t REG_DWORD /d 0 /f
+
+- name: Set NTP
+  win_command: "{{ item }}"
+  loop:
+    - w32tm /config /syncfromflags:manual /manualpeerlist:it.pool.ntp.org
+    - net stop w32time
+    - net start w32time
+    - w32tm /config /update
+    - w32tm /resync
+  register: ntpresult
+  failed_when: ntpresult.rc != 0 and ntpresult.rc != 2
+
+- name: Install dev packages
+  win_chocolatey:
+    name:
+      - unity-hub
+      - powershell
+      - firefox
+      - chromium
+      - adobereader
+      - git
+      - androidstudio
+      - python
+      - golang
+      - 7zip
+      - libreoffice-fresh
+      - temurin17
+      - vscodium
+      - gimp
+      - wget
+      - curl
+      - putty
+      - winscp
+      - mysql.workbench
+      - notepadplusplus
+      - gradle
+      - intellijidea-community
+      - winmerge
+      - docker-desktop
+      - goland
+      - pycharm
+      - pgadmin4
+      - datagrip
+      - vlc
+    state: present
+
+- name: Ensure gamlab user is present
+  ansible.windows.win_user:
+    name: gamlab
+    password: "{{ gamlab_user_password }}"
+    password_never_expires: true
+    user_cannot_change_password: true
+    state: present

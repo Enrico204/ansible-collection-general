@@ -1,0 +1,29 @@
+- name: Install rsyslog PostgreSQL support
+  become: true
+  ansible.builtin.apt:
+    pkg:
+      - rsyslog-pgsql
+    state: present
+  when: rsyslog_psql_host is defined
+
+- name: Accept remote logging using UDP, TCP and RELP
+  become: true
+  template:
+    src: remote.conf.j2
+    dest: /etc/rsyslog.d/remote.conf
+    mode: '0600'
+    owner: root
+    group: root
+  notify: "Restart rsyslog"
+  when: rsyslog_psql_host is defined
+
+- name: Save logs in PostgreSQL
+  become: true
+  template:
+    src: pgsql.conf.j2
+    dest: /etc/rsyslog.d/pgsql.conf
+    mode: '0600'
+    owner: root
+    group: root
+  notify: "Restart rsyslog"
+  when: rsyslog_psql_host is defined

@@ -1,0 +1,38 @@
+{% if 'v4l2' in camera %}
+videodevice {{ camera.v4l2 }}
+{% endif %}
+
+{% if 'netcam' in camera %}
+netcam_url {{ camera.netcam }}
+
+netcam_params keepalive=on,tolerant_check=on
+{% endif %}
+
+# Image width in pixels.
+width {{ camera.width | default(640) }}
+
+# Image height in pixels.
+height {{ camera.height | default(480) }}
+
+# Maximum number of frames to be captured per second.
+framerate {{ camera.framerate | default(15) }}
+
+# Text to be overlayed in the lower left corner of images
+text_left {{ camera.text_left | default(inventory_hostname) }}
+
+# Text to be overlayed in the lower right corner of images.
+text_right {{ camera.text_right | default("%Y-%m-%d\\n%T-%q") }}
+
+text_scale {{ camera.text_scale | default(2) }}
+
+threshold {{ camera.threshold | default(1500) }}
+
+picture_output {% if 'pictures' in camera and camera.pictures %}on{% else %}off{% endif %}
+movie_output {% if 'movie' in camera and camera.movie %}on{% else %}off{% endif %}
+movie_max_time 3600
+movie_quality 100
+
+{% if 'lan_mode' in camera and camera.lan_mode %}
+stream_maxrate 100
+stream_quality 100
+{% endif %}

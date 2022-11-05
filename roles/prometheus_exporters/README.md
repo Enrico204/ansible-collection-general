@@ -1,0 +1,1 @@
+For now, it supports only smartctl

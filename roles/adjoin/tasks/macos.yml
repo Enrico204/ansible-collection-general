@@ -1,0 +1,19 @@
+- name: Check if the machine is already joined
+  command: dsconfigad -show
+  register: dsconfigcmd
+
+- name: Join macOS to Gamlab domain
+  command: dsconfigad -add "{{ ad_domain_fqdn }}" -username {{ ad_admin_user }} -password {{ ad_admin_pass }} -groups "Domain Admins,Enterprise Admins" -force
+  become: true
+  when: ad_domain_fqdn not in dsconfigcmd.stdout
+  notify: "Reboot"
+
+- name: Hide list of users at login
+  osx_defaults:
+    domain: /Library/Preferences/com.apple.loginwindow
+    key: SHOWFULLNAME
+    value: 1
+    type: int
+    state: present
+  become: true
+  notify: "Reboot"

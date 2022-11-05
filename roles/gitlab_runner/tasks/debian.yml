@@ -1,0 +1,113 @@
+- module_defaults:
+    apt:
+      cache_valid_time: 86400
+  block:
+    - name: Install requirements
+      become: true
+      apt:
+        pkg:
+          - gnupg
+          - openssh-server
+          - debian-archive-keyring
+          - apt-transport-https
+        state: present
+
+    - name: Add GitLab repo key
+      become: true
+      apt_key:
+        url: https://packages.gitlab.com/gpg.key
+        state: present
+
+    - name: Adding GitLab runner repository
+      become: true
+      apt_repository:
+        repo: "deb https://packages.gitlab.com/runner/gitlab-runner/debian/ {{ ansible_distribution_release }} main"
+
+    - name: "Install gitlab runner"
+      become: true
+      apt:
+        state: present
+        pkg:
+          - gitlab-runner
+
+    - name: Add GitLab runner user to Docker group
+      become: true
+      user:
+        name: gitlab-runner
+        groups: docker
+        append: true
+      when: "(runners | selectattr('executor', 'equalto', 'docker') | length) > 0"
+
+    # Add GitLab runner workarounds and hacks
+    - name: Remove bash logout (workaround for gitlab issue)
+      become: true
+      file:
+        path: /home/gitlab-runner/.bash_logout
+        state: absent
+
+    - name: Copying git config
+      become: true
+      copy:
+        content: "{{ runner_gitconfig }}"
+        dest: /home/gitlab-runner/.gitconfig
+        owner: gitlab-runner
+        group: gitlab-runner
+        mode: 0600
+      when: runner_gitconfig is defined
+
+    - name: Copying .profile
+      become: true
+      copy:
+        content: |
+          if [ -n "$BASH_VERSION" ]; then
+              if [ -f "$HOME/.bashrc" ]; then
+            . "$HOME/.bashrc"
+              fi
+          fi
+
+          if [ -d "$HOME/bin" ] ; then
+              PATH="$HOME/bin:$PATH"
+          fi
+        dest: /home/gitlab-runner/.profile
+        owner: gitlab-runner
+        group: gitlab-runner
+        mode: 0600
+
+    - name: Create .ssh directory
+      become: true
+      file:
+        path: /home/gitlab-runner/.ssh/
+        state: directory
+        owner: gitlab-runner
+        group: gitlab-runner
+        mode: 0700
+      when: runner_known_hosts is defined
+
+    - name: Copying .ssh
+      become: true
+      copy:
+        content: "{{ runner_known_hosts }}"
+        dest: /home/gitlab-runner/.ssh/known_hosts
+        owner: gitlab-runner
+        group: gitlab-runner
+        mode: 0600
+      when: runner_known_hosts is defined
+
+    - name: Create containers config directory
+      become: true
+      file:
+        path: /home/gitlab-runner/.config/containers/
+        state: directory
+        recurse: true
+        owner: gitlab-runner
+        group: gitlab-runner
+        mode: 0755
+
+    - name: Copying .ssh
+      become: true
+      copy:
+        src: containers.conf
+        dest: /home/gitlab-runner/.config/containers/containers.conf
+        owner: gitlab-runner
+        group: gitlab-runner
+        mode: 0600

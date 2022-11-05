@@ -1,0 +1,39 @@
+### Non Debian-system, use the binary provided by github
+- name: Check if rclone is present
+  ansible.builtin.stat:
+    checksum_algorithm: sha256
+    get_checksum: true
+    path: /usr/local/bin/rclone
+  register: rclone_executable
+
+- name: Set rclone download file name
+  set_fact:
+    rclone_dl_fname: rclone-v{{ rclone_version }}-{{ ansible_system | lower }}-{{ architectures[ansible_architecture] }}.zip
+  when: not rclone_executable.stat.exists or rclone_executable.stat.checksum != rclone_sha256[ansible_system][ansible_architecture]
+
+- name: Download rclone
+  ansible.builtin.get_url:
+    url: "https://github.com/rclone/rclone/releases/download/v{{ rclone_version }}/{{ rclone_dl_fname }}"
+    dest: /tmp/rclone.zip
+    checksum: "sha256:https://github.com/rclone/rclone/releases/download/v{{ rclone_version }}/SHA256SUMS"
+  when: not rclone_executable.stat.exists or rclone_executable.stat.checksum != rclone_sha256[ansible_system][ansible_architecture]
+  register: rclone_download
+
+- name: Decompress rclone
+  unarchive:
+    src: /tmp/rclone.zip
+    remote_src: true
+    dest: /tmp/
+    extra_opts: ["-o", "-j"]
+  when: rclone_download is not skipped
+
+- name: Install rclone
+  become: true
+  copy:
+    remote_src: true
+    src: /tmp/rclone
+    dest: /usr/local/bin/rclone
+    owner: root
+    group: root
+    mode: '0755'
+  when: rclone_download is not skipped

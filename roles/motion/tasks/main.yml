@@ -1,0 +1,14 @@
+- module_defaults:
+    apt:
+      cache_valid_time: 86400
+  block:
+    - name: Install motion
+      import_tasks: motion.yml
+
+    - name: Install caddy
+      import_tasks: caddy.yml
+      when: motion_caddy
+
+    - name: Rclone
+      import_tasks: rclone.yml
+      when: motion_rclone

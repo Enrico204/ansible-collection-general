@@ -1,0 +1,45 @@
+- name: Upload backup
+  become: true
+  become_user: postgres
+  copy:
+    src: "{{ timescale_db_file }}"
+    dest: /tmp/database.bak
+    mode: 0600
+    owner: postgres
+
+- name: Recreate database
+  become: true
+  become_user: postgres
+  command: "psql -c 'CREATE DATABASE {{ timescale_db_name }}'"
+  changed_when: false
+
+- name: Create TimescaleDB extension
+  become: true
+  become_user: postgres
+  command: "psql -c 'CREATE EXTENSION timescaledb' {{ timescale_db_name }}"
+  changed_when: false
+
+- name: Prepare TimescaleDB for restore
+  become: true
+  become_user: postgres
+  command: "psql -c 'SELECT timescaledb_pre_restore()' {{ timescale_db_name }}"
+  changed_when: false
+
+- name: Restoring TimescaleDB database
+  become: true
+  become_user: postgres
+  command: "pg_restore -Fc -O -x -d {{ timescale_db_name }} /tmp/database.bak"
+  changed_when: false
+
+- name: Finishing TimescaleDB for restore
+  become: true
+  become_user: postgres
+  command: "psql -c 'SELECT timescaledb_post_restore()' {{ timescale_db_name }}"
+  changed_when: false
+
+- name: Remove backup file
+  become: true
+  become_user: postgres
+  file:
+    path: /tmp/database.bak
+    state: absent

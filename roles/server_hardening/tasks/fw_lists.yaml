@@ -1,0 +1,27 @@
+- module_defaults:
+    apt:
+      cache_valid_time: 86400
+  block:
+    - name: Install updater script requirements
+      become: true
+      apt:
+        pkg:
+          - wget
+
+    - name: Fw updater script
+      become: true
+      template:
+        src: fw-lists-update.sh.j2
+        dest: /usr/local/sbin/fw-lists-update
+        mode: 0700
+        owner: root
+        group: root
+      notify: "Reload black/white lists"
+
+    - name: Cron schedule for FW updater script
+      become: true
+      cron:
+        name: "update FW IP lists"
+        minute: "*/15"
+        job: "/usr/local/sbin/fw-lists-update -c"
+        user: root

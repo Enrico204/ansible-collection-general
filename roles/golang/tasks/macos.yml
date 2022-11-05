@@ -1,0 +1,12 @@
+- name: Install GoLang using homebrew
+  homebrew:
+    name: "go@{{ go_version | regex_search('^[0-9]+\\.[0-9]+') }}"
+    state: present
+
+- name: Ensure GOPRIVATE is set
+  lineinfile:
+    path: "/etc/launchd.conf"
+    create: true
+    line: "setenv GOPRIVATE \"{{ go_private }}\""
+    mode: 0644
+    state: present

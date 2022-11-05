@@ -1,0 +1,18 @@
+namespace: enrico204
+name: general
+version: 1.0.0
+readme: README.md
+authors:
+- Enrico204 <enrico204@gmail.com>
+description: This is a general collection for roles that I wrote.
+license:
+- GPL-2.0-or-later
+tags: []
+dependencies: {}
+repository: https://git.netsplit.it/enrico204/ansible-collection-general.git
+
+#documentation: http://docs.example.com
+#homepage: http://example.com
+#issues: http://example.com/issue/tracker
+
+build_ignore: []

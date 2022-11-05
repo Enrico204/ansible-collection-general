@@ -1,0 +1,167 @@
+- name: Set base sources.list file for (post) bullseye
+  become: true
+  copy:
+    content: |
+      deb http://deb.debian.org/debian {{ ansible_distribution_release }} main contrib non-free
+      deb-src http://deb.debian.org/debian {{ ansible_distribution_release }} main contrib non-free
+      deb http://deb.debian.org/debian {{ ansible_distribution_release }}-updates main contrib non-free
+      deb-src http://deb.debian.org/debian {{ ansible_distribution_release }}-updates main contrib non-free
+      deb http://security.debian.org/debian-security {{ ansible_distribution_release }}-security main contrib non-free
+      deb-src http://security.debian.org/debian-security {{ ansible_distribution_release }}-security main contrib non-free
+      deb http://deb.debian.org/debian/ {{ ansible_distribution_release }}-backports main contrib non-free
+      deb-src http://deb.debian.org/debian/ {{ ansible_distribution_release }}-backports main contrib non-free
+    dest: /etc/apt/sources.list
+    owner: root
+    group: root
+    mode: 0644
+  when: ansible_distribution_release != 'stretch' and ansible_distribution_release != 'buster'
+
+- name: Set base sources.list file for pre bullseye
+  become: true
+  copy:
+    content: |
+      deb http://deb.debian.org/debian/ {{ ansible_distribution_release }} main non-free contrib
+      deb-src http://deb.debian.org/debian/ {{ ansible_distribution_release }} main non-free contrib
+      deb http://security.debian.org/debian-security {{ ansible_distribution_release }}/updates main contrib non-free
+      deb-src http://security.debian.org/debian-security {{ ansible_distribution_release }}/updates main contrib non-free
+      deb http://deb.debian.org/debian/ {{ ansible_distribution_release }}-updates main contrib non-free
+      deb-src http://deb.debian.org/debian/ {{ ansible_distribution_release }}-updates main contrib non-free
+      deb http://deb.debian.org/debian/ {{ ansible_distribution_release }}-backports main contrib non-free
+      deb-src http://deb.debian.org/debian/ {{ ansible_distribution_release }}-backports main contrib non-free
+    dest: /etc/apt/sources.list
+    owner: root
+    group: root
+    mode: 0644
+  when: ansible_distribution_release == 'stretch' or ansible_distribution_release == 'buster'
+
+- name: Refresh apt sources
+  become: true
+  command: apt-get update
+
+- name: Install base tools (Intel-compatible only)
+  become: true
+  apt:
+    pkg:
+      - acpi
+  when: build_tools and ansible_machine == 'x86_64'
+
+- name: Install base tools
+  become: true
+  apt:
+    pkg:
+      - minicom
+      - iperf
+      - iperf3
+      - ethtool
+      - openvpn
+      - p7zip
+      - smartmontools
+      - ntp
+      - pass
+      - vbindiff
+      - sipcalc
+      - bsdutils
+      - bsdmainutils
+      - binwalk
+      - socat
+      - aria2
+      - jq
+      - redis-tools
+      - sqlite3
+      - tcpdump
+      - build-essential
+      - git
+      - curl
+      - default-libmysqlclient-dev
+      - default-mysql-client
+      - gawk
+      - make
+      - markdown
+      - tmux
+      - mtr-tiny
+      - python3
+      - python3-pexpect  # for some playbooks
+      - python3-pip
+      - python3-all-dev
+      - python3-virtualenv
+      - rsync
+      - vim
+      - wget
+      - apt-transport-https
+      - ca-certificates
+      - gnupg2
+      - postgresql-client
+      - redis-tools
+      - unzip
+      - gradle
+      - wireguard
+    update_cache: true
+    cache_valid_time: 1
+  when: build_tools
+
+- name: Install X11 base tools
+  become: true
+  apt:
+    state: present
+    name:
+      - xterm
+      - xinit
+      - xserver-xorg
+      - tigervnc-viewer
+      - chromium
+      - firefox-esr
+      - task-xfce-desktop
+      - lightdm
+      - cups
+      - zenity
+      - dbus-x11
+      - xscreensaver
+  when: x11
+
+- name: Remove X11 base tools
+  become: true
+  apt:
+    state: absent
+    name:
+      - xterm
+      - xinit
+      - xserver-xorg
+      - tigervnc-viewer
+      - chromium
+      - firefox-esr
+      - task-xfce-desktop
+      - lightdm
+      - cups
+      - zenity
+      - dbus-x11
+      - xscreensaver
+  when: not x11
+
+- name: Remove unattended upgrades
+  become: true
+  apt:
+    state: absent
+    pkg:
+      - unattended-upgrades
+    purge: true
+
+# Debian Fast Track repository
+- name: Add Fast Track repository
+  become: true
+  apt:
+    pkg:
+      - fasttrack-archive-keyring
+
+- name: Add Fast Track repository
+  become: true
+  apt_repository:
+    filename: "fasttrack"
+    repo: "deb http://fasttrack.debian.net/debian-fasttrack/ bullseye-fasttrack main contrib"
+  when: debian_fasttrack and ansible_distribution_release == 'bullseye'
+
+- name: Add Fast Track backports staging repository
+  become: true
+  apt_repository:
+    filename: "fasttrack-backports-staging"
+    repo: "deb http://fasttrack.debian.net/debian-fasttrack/ bullseye-backports-staging main contrib"
+  when: debian_fasttrack and ansible_distribution_release == 'bullseye'

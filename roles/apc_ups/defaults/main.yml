@@ -1,0 +1,3 @@
+apcupsd_enable: true
+apcupsd_metrics: false
+apcupsd_offscript: ""

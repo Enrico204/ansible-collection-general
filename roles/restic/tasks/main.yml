@@ -1,0 +1,32 @@
+- module_defaults:
+    apt:
+      cache_valid_time: 86400
+  block:
+    - name: Install restic executable
+      import_tasks: restic.yml
+
+    - name: Install restic-rest-server executable
+      import_tasks: rest-server.yml
+      when: rest_server
+
+    - name: Install restic agent
+      import_tasks: restic-agent.yml
+      when: restic_agent
+
+    - name: Install restic agent for services
+      include_tasks: restic-agent-services.yml
+      loop: "{{ restic_agent_services }}"
+      loop_control:
+        loop_var: service
+        label: "{{ service.name }}"
+
+    - name: Cleanup old restic agent services
+      include_tasks: restic-agent-services-cleanup.yml
+
+    - name: Install rclone executable
+      import_tasks: rclone.yml
+      when: rclone
+
+    - name: Configure restic remote sync
+      import_tasks: remote-sync.yml
+      when: rclone
