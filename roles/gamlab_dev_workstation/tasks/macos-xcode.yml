@@ -9,6 +9,12 @@
     install_xcode: true
   when: not Xcodeapp.stat.exists
 
+- name: Set Xcode for CLI tools
+  become: true
+  command: xcode-select --switch /Applications/Xcode.app
+  changed_when: false
+  when: Xcodeapp.stat.exists
+
 - name: Get current Xcode version
   shell: /usr/bin/xcodebuild -version | grep Xcode | cut -f 2 -d ' '
   register: xcode_curversion
