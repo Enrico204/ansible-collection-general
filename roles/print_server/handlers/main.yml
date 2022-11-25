@@ -1,0 +1,11 @@
+- name: Restart CUPS
+  become: true
+  systemd:
+    name: cups
+    state: restarted
+
+- name: Restart CUPS browsed
+  become: true
+  systemd:
+    name: cups-browsed
+    state: restarted

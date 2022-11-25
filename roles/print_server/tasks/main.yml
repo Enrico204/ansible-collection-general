@@ -1,0 +1,58 @@
+- module_defaults:
+    ansible.builtin.apt:
+      cache_valid_time: 86400
+      update_cache: true
+  block:
+    - name: Install cups and requirements
+      become: true
+      ansible.builtin.apt:
+        pkg:
+          - cups
+          - cups-bsd
+          - poppler-utils
+          - imagemagick
+          - wget
+          - gnupg
+          - software-properties-common
+          - avahi-daemon
+          - avahi-discover
+          - libnss-mdns
+          - binutils
+          - wget
+          - curl
+          - cpio
+          - librsvg2-bin
+          - fontconfig
+          - fonts-dejavu
+          - ttf-mscorefonts-installer
+          - gsfonts
+          - fonts-cantarell
+          - fonts-croscore
+          - fonts-crosextra-caladea
+          - fonts-crosextra-carlito
+          - fonts-droid-fallback
+          - fonts-liberation
+          - fonts-noto
+          - fonts-opensymbol
+          - expect
+          - printer-driver-escpr
+          - sudo
+        state: present
+
+    - name: Set paper size to A4
+      become: true
+      copy:
+        content: "a4"
+        dest: /etc/papersize
+      notify: "Restart CUPS"
+
+    - name: Copy CUPS configuration
+      become: true
+      copy:
+        src: "{{ item }}"
+        dest: "/etc/cups/{{ item }}"
+        mode: '0660'
+        owner: root
+        group: lp
+      loop: ["cupsd.conf", "cups-browsed.conf"]
+      notify: ["Restart CUPS", "Restart CUPS browsed"]
