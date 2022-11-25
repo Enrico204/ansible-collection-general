@@ -1,0 +1,21 @@
+- module_defaults:
+    ansible.builtin.apt:
+      cache_valid_time: 86400
+      update_cache: true
+  block:
+    - name: Install Avahi
+      become: true
+      ansible.builtin.apt:
+        pkg:
+          - avahi-daemon
+        state: present
+
+    - name: Copy Avahi configuration
+      become: true
+      template:
+        src: avahi-daemon.conf.j2
+        dest: /etc/avahi/avahi-daemon.conf
+        mode: '0644'
+        owner: root
+        group: root
+      notify: ["Restart Avahi"]

@@ -1,0 +1,1 @@
+avahi_allow_interfaces: "eth0,eth1"
