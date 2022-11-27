@@ -61,6 +61,8 @@
         - custom_commands.conf
         - users.conf
         - external_services.conf
+        - downtime.conf
+        - timeperiods.conf
 
     - name: Copy Telegram notifications definition
       become: true

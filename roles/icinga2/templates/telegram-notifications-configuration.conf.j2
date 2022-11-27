@@ -51,6 +51,8 @@ apply Notification "telegram-notifications-notification-hosts" to Host {
   import "telegram-notifications-user-configuration-hosts"
   interval = (host.vars.notification.interval) || {{ icinga2_notification_interval | default("1h") }}
 
+  period = "lighthours"
+
   assign where host.vars.notification.telegram == true
 }
 
@@ -71,6 +73,8 @@ template Notification "telegram-notifications-user-configuration-services" {
 apply Notification "telegram-notifications-notification-services" to Service {
   import "telegram-notifications-user-configuration-services"
   interval = (service.vars.notification.interval) || {{ icinga2_notification_interval | default("1h") }}
+
+  period = "lighthours"
 
   assign where host.vars.notification.telegram == true && service.vars.notification.telegram != false
 }

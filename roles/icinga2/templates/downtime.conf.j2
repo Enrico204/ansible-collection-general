@@ -1,0 +1,16 @@
+apply ScheduledDowntime "backup-downtime" to Host {
+    author = "icingaadmin"
+    comment = "Scheduled downtime for backup"
+
+    ranges = {
+        monday = host.vars.backup_downtime
+        tuesday = host.vars.backup_downtime
+        wednesday = host.vars.backup_downtime
+        thursday = host.vars.backup_downtime
+        friday = host.vars.backup_downtime
+        saturday = host.vars.backup_downtime
+        sunday = host.vars.backup_downtime
+    }
+
+    assign where host.vars.backup_downtime != ""
+}

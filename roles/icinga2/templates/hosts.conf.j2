@@ -21,7 +21,9 @@ object Host "{{ host }}" {
     vars.parent_host_name = "{{ hostvars[host]['icinga2_parent_host'] }}"
     {% endif %}
 
-    vars.backup_downtime = "{{ icinga2_downtime }}"
+    {% if 'icinga2_backup_downtime' in hostvars[host] %}
+    vars.backup_downtime = "{{ hostvars[host]["icinga2_backup_downtime"] }}"
+    {% endif %}
 
     {% if 'ansible_network_os' in hostvars[host] and hostvars[host]['ansible_network_os'] == 'community.network.routeros' %}
     vars.os = "Mikrotik"
