@@ -1,0 +1,4 @@
+Acquire::http::Proxy "{{ apt_proxy }}";
+{% for m in apt_proxy_skip_for %}
+Acquire::http::proxy::{{ m }} "DIRECT";
+{% endfor %}

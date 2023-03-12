@@ -1,0 +1,3 @@
+- name: Update APT
+  become: true
+  command: apt-get update

@@ -1,0 +1,50 @@
+- module_defaults:
+    apt:
+      cache_valid_time: 86400
+  block:
+    - name: Check distro requirements
+      fail:
+        msg: This playbook supports only Debian
+      when: ansible_os_family != 'Debian'
+
+    - name: Add Netsplit repository
+      become: true
+      apt_repository:
+        filename: "netsplit"
+        repo: "deb [trusted=yes] https://deb.netsplit.it/{{ ansible_distribution_release }} ./"
+
+    - name: Install rtsp-simple-server package
+      become: true
+      apt:
+        pkg:
+          - rtsp-simple-server
+          - ffmpeg
+        state: present
+
+    - name: Create rtsp-simple-server config
+      become: true
+      template:
+        src: rtsp-simple-server.yaml.j2
+        dest: "/etc/rtsp-simple-server.yaml"
+        owner: root
+        group: root
+        mode: '0600'
+      notify: "Restart rtsp-simple-server"
+
+    - name: Create rtsp-simple-server systemd service
+      become: true
+      copy:
+        src: rtsp-simple-server.service
+        dest: "/etc/systemd/system/rtsp-simple-server.service"
+        owner: root
+        group: root
+        mode: '0600'
+      notify: "Restart rtsp-simple-server"
+
+    - name: Reload systemd daemon, enable and start rtsp-simple-server service
+      become: true
+      systemd:
+        state: started
+        daemon_reload: true
+        name: rtsp-simple-server
+        enabled: true

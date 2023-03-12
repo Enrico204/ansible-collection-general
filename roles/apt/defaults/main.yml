@@ -1,0 +1,10 @@
+debian_fasttrack: false
+apt_sources: false
+apt_mirror_fallback: true
+apt_mirror: http://deb.debian.org/debian
+apt_security_mirror: http://deb.debian.org/debian-security
+apt_proxy_skip_for: []
+apt_phased_updates: true
+
+apt_pve_enterprise: false
+apt_pve_nosubscription: false

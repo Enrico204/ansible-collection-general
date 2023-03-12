@@ -1,0 +1,8 @@
+{% if apt_machine_id is defined %}
+// Syncronize the update phase with all machines with this ID
+APT::Machine-ID "{{ apt_machine_id }}";
+{% endif %}
+{% if not apt_phased_updates %}
+// Disable phased updates
+APT::Get::Always-Include-Phased-Updates "1";
+{% endif %}

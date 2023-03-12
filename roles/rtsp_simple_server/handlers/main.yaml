@@ -1,0 +1,5 @@
+- name: Restart rtsp-simple-server
+  become: true
+  systemd:
+    name: rtsp-simple-server
+    state: restarted

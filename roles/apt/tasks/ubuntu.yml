@@ -1,0 +1,47 @@
+##### APT CONFIG: PHASED UPDATES
+- name: Remove phased updates config
+  become: true
+  file:
+    path: /etc/apt/apt.conf
+    state: absent
+  when: apt_phased_updates and apt_machine_id is not defined
+
+- name: Configure phased updates config
+  become: true
+  template:
+    src: 90phased-updates.j2
+    dest: /etc/apt/apt.conf.d/90phased-updates
+    mode: 0755
+  when: not apt_phased_updates or apt_machine_id is defined
+
+##### APT CONFIG: PROXY
+- name: Remove previous APT local proxy config from Ubuntu installer
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/apt/apt.conf
+    state: absent
+    regexp: "^Acquire::http::Proxy"
+
+- name: Unset APT local proxy
+  become: true
+  file:
+    path: /etc/apt/apt.conf.d/99proxy
+    state: absent
+  when: apt_proxy is not defined or apt_proxy == ''
+
+- name: Set APT local proxy
+  become: true
+  template:
+    src: 99proxy.j2
+    dest: /etc/apt/apt.conf.d/99proxy
+    mode: 0755
+  when: apt_proxy is defined
+
+##### OTHERS
+- name: Remove unattended upgrades
+  become: true
+  apt:
+    state: absent
+    pkg:
+      - unattended-upgrades
+    purge: true

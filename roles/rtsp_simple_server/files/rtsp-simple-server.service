@@ -1,0 +1,8 @@
+[Unit]
+Wants=network.target
+
+[Service]
+ExecStart=/usr/bin/rtsp-simple-server /etc/rtsp-simple-server.yaml
+
+[Install]
+WantedBy=multi-user.target
