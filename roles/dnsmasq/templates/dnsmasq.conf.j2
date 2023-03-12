@@ -44,6 +44,7 @@ host-record={{ host.names | join(",") }}{% if 'ip4' in host %},{{ host.ip4 }}{% 
 interface={{ ansible_default_ipv4["alias"] }}
 
 {% for domain in domains %}
+auth-zone={{ domain.name }},{{ domain.subnet }}/{{ domain.dhcp4.prefixlen | default('24') }}
 {# Configure domain for IPv4 #}
 {% if 'subnet' in domain %}
 domain={{ domain.name }},{{ domain.subnet }},local
