@@ -50,9 +50,10 @@ borg_agent_exclude_basic:
   - "/var/tmp/*"
   - "/var/cache/*"
   - "/var/lib/apt/lists/*"
-  - "/var/lib/docker/*"
-  - "/var/lib/containerd/*"
-  - "/var/lib/containers/*"
+  # In case of swarm node, you can ignore these
+  # - "/var/lib/docker/*"
+  # - "/var/lib/containerd/*"
+  # - "/var/lib/containers/*"
   - "/var/lib/kubelet/*"
   - "/var/lib/mysql/*"
   - "/var/lib/lxcfs/*"
@@ -60,5 +61,6 @@ borg_agent_exclude_basic:
   - "/var/lib/rancher/k3s/data/*"
   - "/var/lib/rancher/k3s/server/*"
   - "/usr/lib/go*"
+  - "/swap.img"
 
 borg_agent_services: []

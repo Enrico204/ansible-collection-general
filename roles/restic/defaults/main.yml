@@ -88,6 +88,7 @@ restic_agent_iexclude_basic:
   - "/var/lib/rancher/k3s/data/*"
   - "/var/lib/rancher/k3s/server/*"
   - "/usr/lib/go*"
+  - "/swap.img"
 
 restic_agent_custom_opts: ""
 restic_agent_services: []

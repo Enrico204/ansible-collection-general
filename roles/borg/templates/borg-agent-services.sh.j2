@@ -159,16 +159,35 @@ curl -k -s \
     -d '{}' \
     -X POST \
     {{ service.proto | default('https') }}://{{ service.host }}:{{ service.port | default(9443) }}/api/backup \
+    | gunzip \
     | borg create    \
     $BORG_LOGGING_CREATE            \
     --files-cache=disabled          \
     --filter AME                    \
     --compression lz4               \
-    --stdin-name "{{ service.filename | default('stdin.tar.gz') }}" \
+    --stdin-name "{{ service.filename | default('stdin.tar') }}" \
     {{ borg_agent_custom_opts }}    \
                                     \
     ::'{{ service.name }}-{now}'    \
     -
+
+{% elif service.type == 'gitlab' %}
+rm -rf /var/opt/gitlab/backups/*
+{# Step 1: do a GitLab named backup #}
+/opt/gitlab/bin/gitlab-rake gitlab:backup:create CRON=1 GZIP_RSYNCABLE=yes SKIP=builds,artifacts BACKUP=borg SKIP=tar
+
+{# Step 2: read the backup into borg #}
+nice -n 19 $IONICE borg create    \
+    $BORG_LOGGING_CREATE            \
+    --filter AME                    \
+    --compression lz4               \
+    {{ borg_agent_custom_opts }}    \
+                                    \
+    ::'{{ service.name }}-{now}'    \
+    /var/opt/gitlab/backups
+
+{# Step 3: delete the backup #}
+rm -rf /var/opt/gitlab/backups/*
 {% endif %}
     
 
