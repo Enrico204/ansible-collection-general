@@ -13,4 +13,4 @@
       apt:
         state: present
         name:
-          - xrdp=0.9.12-1.2
+          - xrdp=0.9.12-1.1netsplit1
