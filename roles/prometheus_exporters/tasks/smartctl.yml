@@ -17,23 +17,6 @@
         filename: "netsplit"
         repo: "deb [trusted=yes] https://deb.netsplit.it/{{ ansible_distribution_release }} ./"
 
-    - name: Add smartmontools for buster
-      become: true
-      apt:
-        state: latest  # noqa package-latest
-        name:
-          - smartmontools
-        default_release: buster-backports
-      when: ansible_distribution_release == 'buster'
-
-    - name: Add exporter for buster
-      become: true
-      apt:
-        state: present
-        name:
-          - smartctl-exporter
-      when: ansible_distribution_release == 'buster'
-
     - name: Add smartmontools and exporter
       become: true
       apt:
@@ -41,7 +24,6 @@
         name:
           - smartmontools
           - smartctl-exporter
-      when: ansible_distribution_release != 'buster'
 
 - name: Create systemd service
   become: true

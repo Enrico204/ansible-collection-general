@@ -1,7 +1,7 @@
 - name: Configure smartctl exporter
   include_tasks: smartctl.yml
-  when: exporter_smartctl and ansible_virtualization_role == 'host' and ansible_distribution == 'debian'
+  when: exporter_smartctl and ansible_virtualization_role == 'host' and ansible_distribution == 'Debian'
 
 - name: Configure node exporter
   include_tasks: node.yml
-  when: exporter_node and ansible_distribution == 'debian'
+  when: exporter_node and ansible_distribution == 'Debian'
