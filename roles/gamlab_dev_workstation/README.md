@@ -2,6 +2,8 @@
 
 Base development workstation used in Gamification Lab. Supports Linux (Debian) and macOS.
 
+This role requires the `apt` role to be executed before.
+
 ## MacOS requirements
 
 This playbook requires a macOS with Xcode command line tools installed. To prepare a script for automate the installation workflow (CLI tools included) use [MDS](https://twocanoes.com/products/mac/mac-deploy-stick/).
@@ -12,7 +14,6 @@ It was tested with Monterey and Python 3.10.
 
 | Name | Description |
 | ----- | ----- |
-| `apt_proxy` | APT proxy, if any |
 | `x11` | If `true`, enables X11 tools |
 | `disable_mitigations` | If `true`, remove mitigations for Spectre/Meltdown |
 | `background_image` | Path to the background image for the login manager |

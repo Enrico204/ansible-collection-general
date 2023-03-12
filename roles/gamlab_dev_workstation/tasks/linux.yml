@@ -2,23 +2,6 @@
     apt:
       cache_valid_time: 86400
   block:
-    - name: Set APT local proxy
-      become: true
-      copy:
-        content: |
-          Acquire::http::Proxy "{{ apt_proxy }}";
-        dest: /etc/apt/apt.conf.d/99proxy
-        mode: 0755
-      when: apt_proxy is defined
-
-    - name: Remove previous APT local proxy config from Debian installer
-      become: true
-      ansible.builtin.lineinfile:
-        path: /etc/apt/apt.conf
-        state: absent
-        regexp: "^Acquire::http::Proxy"
-      when: apt_proxy is defined
-
     - name: Base tools
       import_tasks: linux-base.yml
 

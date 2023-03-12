@@ -1,42 +1,8 @@
-- name: Set base sources.list file for (post) bullseye
+- name: Check supported Debian versions
   become: true
-  copy:
-    content: |
-      deb http://deb.debian.org/debian {{ ansible_distribution_release }} main contrib non-free
-      deb-src http://deb.debian.org/debian {{ ansible_distribution_release }} main contrib non-free
-      deb http://deb.debian.org/debian {{ ansible_distribution_release }}-updates main contrib non-free
-      deb-src http://deb.debian.org/debian {{ ansible_distribution_release }}-updates main contrib non-free
-      deb http://security.debian.org/debian-security {{ ansible_distribution_release }}-security main contrib non-free
-      deb-src http://security.debian.org/debian-security {{ ansible_distribution_release }}-security main contrib non-free
-      deb http://deb.debian.org/debian/ {{ ansible_distribution_release }}-backports main contrib non-free
-      deb-src http://deb.debian.org/debian/ {{ ansible_distribution_release }}-backports main contrib non-free
-    dest: /etc/apt/sources.list
-    owner: root
-    group: root
-    mode: 0644
-  when: ansible_distribution_release != 'stretch' and ansible_distribution_release != 'buster'
-
-- name: Set base sources.list file for pre bullseye
-  become: true
-  copy:
-    content: |
-      deb http://deb.debian.org/debian/ {{ ansible_distribution_release }} main non-free contrib
-      deb-src http://deb.debian.org/debian/ {{ ansible_distribution_release }} main non-free contrib
-      deb http://security.debian.org/debian-security {{ ansible_distribution_release }}/updates main contrib non-free
-      deb-src http://security.debian.org/debian-security {{ ansible_distribution_release }}/updates main contrib non-free
-      deb http://deb.debian.org/debian/ {{ ansible_distribution_release }}-updates main contrib non-free
-      deb-src http://deb.debian.org/debian/ {{ ansible_distribution_release }}-updates main contrib non-free
-      deb http://deb.debian.org/debian/ {{ ansible_distribution_release }}-backports main contrib non-free
-      deb-src http://deb.debian.org/debian/ {{ ansible_distribution_release }}-backports main contrib non-free
-    dest: /etc/apt/sources.list
-    owner: root
-    group: root
-    mode: 0644
-  when: ansible_distribution_release == 'stretch' or ansible_distribution_release == 'buster'
-
-- name: Refresh apt sources
-  become: true
-  command: apt-get update
+  fail:
+    msg: "This playbook supports only Debian 11 and 12"
+  when: ansible_distribution_release != 'bullseye' and ansible_distribution_release != 'bookworm'
 
 - name: Install base tools (Intel-compatible only)
   become: true
@@ -144,24 +110,3 @@
     pkg:
       - unattended-upgrades
     purge: true
-
-# Debian Fast Track repository
-- name: Add Fast Track repository
-  become: true
-  apt:
-    pkg:
-      - fasttrack-archive-keyring
-
-- name: Add Fast Track repository
-  become: true
-  apt_repository:
-    filename: "fasttrack"
-    repo: "deb http://fasttrack.debian.net/debian-fasttrack/ bullseye-fasttrack main contrib"
-  when: debian_fasttrack and ansible_distribution_release == 'bullseye'
-
-- name: Add Fast Track backports staging repository
-  become: true
-  apt_repository:
-    filename: "fasttrack-backports-staging"
-    repo: "deb http://fasttrack.debian.net/debian-fasttrack/ bullseye-backports-staging main contrib"
-  when: debian_fasttrack and ansible_distribution_release == 'bullseye'

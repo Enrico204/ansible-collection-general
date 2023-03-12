@@ -10,6 +10,4 @@ macos_xcode_version: ""
 
 install_xcode: false
 
-debian_fasttrack: false
-
 disable_iommu_passthrough: false
