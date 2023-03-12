@@ -7,26 +7,12 @@
       when: gitlab_bkfile is defined and gitlab_version is not defined
 
     # Install GitLab
-    - name: Install requirements
-      become: true
-      apt:
-        pkg:
-          - gnupg
-          - openssh-server
-          - debian-archive-keyring
-          - apt-transport-https
-        state: present
-
-    - name: Add GitLab repo key
-      become: true
-      apt_key:
-        url: https://packages.gitlab.com/gpg.key
-        state: present
-
-    - name: Add GitLab repository
-      become: true
-      apt_repository:
-        repo: "deb https://packages.gitlab.com/gitlab/gitlab-ee/debian/ {{ ansible_distribution_release }} main"
+    - name: Add gitlab repositories
+      include_tasks: _apt-repo.yml
+      loop:
+        - name: gitlab
+          key: https://packages.gitlab.com/gpg.key
+          repo_line: "https://packages.gitlab.com/gitlab/gitlab-ee/debian/ {{ ansible_distribution_release }} main"
 
     - name: Install latest GitLab version
       become: true

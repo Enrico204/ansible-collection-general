@@ -9,3 +9,7 @@
     daemon_reload: true
     name: docker
     enabled: true
+
+- name: Update APT
+  become: true
+  command: apt-get update

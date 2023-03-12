@@ -1,1 +1,4 @@
 docker_autoclean: false
+
+# Setting this to true prevents the playbook to set a sane log default
+docker_manual_log_config: false

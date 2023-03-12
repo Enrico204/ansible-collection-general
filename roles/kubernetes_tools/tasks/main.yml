@@ -2,17 +2,12 @@
     apt:
       cache_valid_time: 86400
   block:
-    - name: Add Google Cloud PGP key
-      become: true
-      apt_key:
-        url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
-        state: present
-
-    - name: Adding Kubernetes repository
-      become: true
-      apt_repository:
-        filename: "kubernetes-tools"
-        repo: "deb https://apt.kubernetes.io/ kubernetes-xenial main"
+    - name: Add Kubernetes tools repositories
+      include_tasks: _apt-repo.yml
+      loop:
+        - name: kubernetes-tools
+          key: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+          repo_line: "https://apt.kubernetes.io/ kubernetes-xenial main"
 
     - name: Install kubectl
       become: true

@@ -2,18 +2,12 @@
     apt:
       cache_valid_time: 86400
   block:
-    # Add Codium repository
-    - name: Adding VSCodium repo key
-      become: true
-      apt_key:
-        url: https://gitlab.com/paulcarroty/vscodium-deb-rpm-repo/raw/master/pub.gpg
-        state: present
-
-    - name: Adding VSCodium repository
-      become: true
-      apt_repository:
-        filename: "codium"
-        repo: "deb {{ codium_mirror }}/debs/ vscodium main"
+    - name: Add codium repositories
+      include_tasks: _apt-repo.yml
+      loop:
+        - name: vscodium
+          key: https://gitlab.com/paulcarroty/vscodium-deb-rpm-repo/raw/master/pub.gpg
+          repo_line: "{{ codium_mirror }}/debs/ vscodium main"
 
     - name: Install Codium
       become: true

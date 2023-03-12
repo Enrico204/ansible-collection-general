@@ -2,38 +2,15 @@
     apt:
       cache_valid_time: 86400
   block:
-    - name: Install dependencies
-      become: true
-      apt:
-        pkg:
-          - curl
-          - gnupg
-          - ca-certificates
-        state: present
-
-    - name: Add PostgreSQL GPG key
-      become: true
-      apt_key:
-        url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
-        state: present
-
-    - name: Add PostgreSQL repository
-      become: true
-      apt_repository:
-        repo: "deb http://apt.postgresql.org/pub/repos/apt/ {{ hostvars[inventory_hostname]['ansible_distribution_release'] }}-pgdg main"
-        state: present
-
-    - name: Add Timescale GPG key
-      become: true
-      apt_key:
-        url: https://packagecloud.io/timescale/timescaledb/gpgkey
-        state: present
-
-    - name: Add TimescaleDB repository
-      become: true
-      apt_repository:
-        repo: "deb https://packagecloud.io/timescale/timescaledb/debian/ {{ hostvars[inventory_hostname]['ansible_distribution_release'] }} main"
-        state: present
+    - name: Add PostgreSQL and TimescaleDB repositories
+      include_tasks: _apt-repo.yml
+      loop:
+        - name: pgsql
+          key: https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          repo_line: "http://apt.postgresql.org/pub/repos/apt/ {{ ansible_distribution_release }}-pgdg main"
+        - name: timescale
+          key: https://packagecloud.io/timescale/timescaledb/gpgkey
+          repo_line: "https://packagecloud.io/timescale/timescaledb/debian/ {{ ansible_distribution_release }} main"
 
     - name: Install TimescaleDB
       become: true
