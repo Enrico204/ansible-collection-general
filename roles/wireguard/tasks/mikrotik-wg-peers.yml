@@ -3,4 +3,4 @@
   loop: "{{ peer['value']['wireguard'] | selectattr('name', '==', wg.name) }}"
   loop_control:
     loop_var: item
-    label: "{{ item.endpoint_host }}"
+    label: "{{ item.vpn_ip }}"

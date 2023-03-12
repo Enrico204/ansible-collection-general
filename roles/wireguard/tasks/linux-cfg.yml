@@ -24,6 +24,7 @@
     mode: '0600'
     lstrip_blocks: true
   loop: "{{ wireguard }}"
+  notify: "Reload wireguard config"
 
 - name: Enable wg-quick on boot and start it
   become: true
