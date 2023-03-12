@@ -24,7 +24,7 @@ xrandr \
 
 sleep {{ delay_between_monitors }}
 {% for m in grafana_monitors %}
-i3-msg 'workspace {{ loop.index }}; exec grafana-kiosk -URL="{{ m["url"] }}" -kiosk-mode=full -login-method=local -playlists=true -username="{{ grafana_username }}" -password="{{ grafana_password }}" -autofit=false'
+i3-msg 'workspace {{ loop.index }}; exec grafana-kiosk -URL="{{ m["url"] }}" -autofit -kiosk-mode=full -login-method=local -playlists=true -username="{{ grafana_username }}" -password="{{ grafana_password }}" -autofit=false'
 sleep {{ delay_between_monitors }}
 {% endfor %}
 
