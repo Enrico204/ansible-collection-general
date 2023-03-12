@@ -1,0 +1,32 @@
+compatibility_level = 2
+smtpd_banner = $myhostname ESMTP $mail_name (Debian/GNU)
+biff = no
+append_dot_mydomain = no
+readme_directory = no
+smtpd_use_tls=no
+smtpd_relay_restrictions = permit_mynetworks permit_sasl_authenticated defer_unauth_destination
+myorigin = /etc/mailname
+myhostname = {{ inventory_hostname }}
+alias_maps = hash:/etc/aliases
+alias_database = hash:/etc/aliases
+mydestination = $myhostname, localhost.localdomain, localhost
+relayhost = {{ smtp_relay_host }}
+mynetworks = 127.0.0.0/8 [::ffff:127.0.0.0]/104 [::1]/128
+mailbox_size_limit = 0
+recipient_delimiter = +
+inet_interfaces = loopback-only
+inet_protocols = all
+smtp_use_tls = yes
+smtp_tls_session_cache_database = btree:${data_directory}/smtp_scache
+smtp_sasl_password_maps = hash:/etc/postfix/smtp_sasl_passwd
+smtp_sasl_auth_enable = yes
+{% if smtp_relay_tls %}
+smtp_tls_security_level = encrypt
+smtp_tls_wrappermode = yes
+{% endif %}
+smtp_sasl_security_options = noanonymous
+
+sender_canonical_classes = envelope_sender, header_sender
+sender_canonical_maps =  regexp:/etc/postfix/sender_canonical_maps
+smtp_header_checks = regexp:/etc/postfix/header_check
+recipient_canonical_maps = regexp:/etc/postfix/recipient_canonical_maps
