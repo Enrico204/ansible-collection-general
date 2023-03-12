@@ -17,10 +17,6 @@ object Host "{{ host }}" {
     import "generic-host"
     address = "{{ ipaddr }}"
 
-    {% if 'icinga2_parent_host' in hostvars[host] %}
-    vars.parent_host_name = "{{ hostvars[host]['icinga2_parent_host'] }}"
-    {% endif %}
-
     {% if 'icinga2_backup_downtime' in hostvars[host] %}
     vars.backup_downtime = "{{ hostvars[host]["icinga2_backup_downtime"] }}"
     {% endif %}
@@ -33,6 +29,10 @@ object Host "{{ host }}" {
     vars.os = "macOS"
     {% else %}
     vars.os = "Linux"
+    {% endif %}
+
+    {% if 'icinga2_zfs_memory' in hostvars[host] and hostvars[host]["icinga2_zfs_memory"] %}
+    vars.zfs_memory = true
     {% endif %}
 
     {% if 'icinga2_synology' in hostvars[host] and hostvars[host]['icinga2_synology'] %}
@@ -128,6 +128,16 @@ object Host "{{ host }}" {
     vars.notification.telegram = true
 {% endif %}
 }
+
+{% if 'icinga2_depends_on_host' in hostvars[host] and hostvars[host]['icinga2_depends_on_host'] != host %}
+object Dependency "{{ hostvars[host]['icinga2_depends_on_host'] }}-{{ host }}" {
+    parent_host_name = "{{ hostvars[host]['icinga2_depends_on_host'] }}"
+    child_host_name = "{{ host }}"
+    states = [ Up ]
+    disable_checks = true
+    disable_notifications = true
+}
+{% endif %}
 
 {% endif %}
 {% endfor %}

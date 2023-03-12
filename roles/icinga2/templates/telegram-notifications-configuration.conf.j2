@@ -3,8 +3,10 @@
 ## User Configuration
 
 template Notification "telegram-notifications-default-configuration" {
-    types = [ Problem, Acknowledgement, Recovery, Custom,
+    types = [ Problem, Recovery, Custom,
               FlappingStart, FlappingEnd ]
+    #types = [ Problem, Acknowledgement, Recovery, Custom,
+    #          FlappingStart, FlappingEnd ]
               # DowntimeStart, DowntimeEnd, DowntimeRemoved ]
     vars.users_fallback = [ "icingaadmin" ]
     users = (host.vars.notify_users) || vars.users_fallback

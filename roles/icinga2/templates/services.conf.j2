@@ -21,6 +21,15 @@ apply Service "snmp-memory" {
   import "generic-service"
   check_command = "snmp-memory"
   assign where host.vars.snmp && (host.vars.os == "Linux" || host.vars.os == "macOS")
+  ignore where host.vars.zfs_memory
+}
+
+apply Service "snmp-memory-zfs" {
+  import "generic-service"
+  check_command = "snmp-memory"
+  vars.snmp_warn = "98,50"
+  vars.snmp_crit = "99,80"
+  assign where host.vars.snmp && (host.vars.os == "Linux" || host.vars.os == "macOS") && host.vars.zfs_memory
 }
 
 apply Service "snmp-storage-" for (disk => config in host.vars.snmp_disks) {
