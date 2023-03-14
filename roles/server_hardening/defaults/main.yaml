@@ -1,4 +1,5 @@
 ssh_hardening: true
+ssh_root_key_access: true
 
 fw_safe_mgmt4: []
 fw_ssh_port: 22

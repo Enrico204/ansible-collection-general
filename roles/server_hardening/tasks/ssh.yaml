@@ -21,6 +21,17 @@
         line: 'PermitRootLogin without-password'
         insertbefore: ^Match
       notify: "Restart SSH server"
+      when: ssh_root_key_access
+
+    - name: Disable root login
+      become: true
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?PermitRootLogin'
+        line: 'PermitRootLogin no'
+        insertbefore: ^Match
+      notify: "Restart SSH server"
+      when: not ssh_root_key_access
 
     - name: Disable password authentication
       become: true
@@ -30,18 +41,3 @@
         line: 'PasswordAuthentication no'
         insertbefore: ^Match
       notify: "Restart SSH server"
-
-    - name: Create .ssh
-      file:
-        path: "~/.ssh"
-        state: directory
-        mode: '0700'
-
-    - name: Ensure SSH keys are set for current user
-      lineinfile:
-        path: "~/.ssh/authorized_keys"
-        create: true
-        line: "{{ item }}"
-        mode: 0644
-        state: present
-      loop: "{{ ssh_pubkeys }}"
