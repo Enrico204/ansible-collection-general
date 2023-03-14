@@ -38,4 +38,3 @@
   apt_repository:
     filename: "{{ item.name }}"
     repo: "deb [arch={{ dpkg_arch.stdout }} signed-by=/etc/apt/keyrings/{{ item.name }}.gpg] {{ item.repo_line }}"
-  notify: "Update APT"
