@@ -2,7 +2,11 @@
     apt:
       cache_valid_time: 86400
   block:
-    - name: Add postfix
+    - fail:
+        msg: "Platform not supported {{ ansible_os_family }}"
+      when: 'ansible_os_family != "Debian" and ansible_os_family != "RedHat"'
+
+    - name: Add postfix (apt)
       become: true
       apt:
         state: present
@@ -12,6 +16,18 @@
           - libsasl2-modules
           - mailutils
           - ca-certificates
+      when: ansible_os_family == 'Debian'
+
+    - name: Add postfix (dnf)
+      become: true
+      dnf:
+        state: present
+        name:
+          - postfix
+          - postfix-pcre
+          - mailx
+          - ca-certificates
+      when: ansible_os_family == 'RedHat'
 
     - name: Remove exim4
       become: true
@@ -21,6 +37,7 @@
         name:
           - exim4
           - exim4-base
+      when: ansible_os_family == 'Debian'
 
     - name: Create Postfix SMTP auth config
       become: true
