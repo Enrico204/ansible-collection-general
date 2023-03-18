@@ -188,6 +188,39 @@ nice -n 19 $IONICE borg create    \
 
 {# Step 3: delete the backup #}
 rm -rf /var/opt/gitlab/backups/*
+
+{% elif service.type == 'proxmox' %}
+TARGET_IS_PRESENT=0
+set +e
+if [ "$(pct list | grep -E '^\s*{{ service.vmid }}\s')" != "" ]; then
+    {# The LXC is in this host #}
+    TARGET_IS_PRESENT=1
+elif [ "$(qm list | grep -E '^\s*{{ service.vmid }}\s')" != "" ]; then
+    {# The VM is in this host #}
+    TARGET_IS_PRESENT=1
+fi
+set -e
+
+if [ "$TARGET_IS_PRESENT" == "1" ]; then
+    vzdump "{{ service.vmid }}" \
+        --compress 0 \
+        --mode snapshot \
+        --remove 0 \
+        --stdout 1 \
+        --quiet 1 \
+        | borg create    \
+        $BORG_LOGGING_CREATE            \
+        --files-cache=disabled          \
+        --filter AME                    \
+        --compression lz4               \
+        --stdin-name "{{ service.filename | default('stdin.tar') }}" \
+        {{ borg_agent_custom_opts }}    \
+                                        \
+        ::'{{ service.name }}-{now}'    \
+        -
+elif [ $BORG_LOGGING = "--verbose" ]; then
+    printf "VM/LXC {{ service.vmid }} skipped as it's not present in this host of the cluster\n"
+fi
 {% endif %}
     
 

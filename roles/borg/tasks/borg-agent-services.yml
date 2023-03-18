@@ -6,7 +6,15 @@
     owner: root
     group: root
     mode: '0700'
-  when: (service.state | default('present')) == 'present'
+  when: "(service.state | default('present')) == 'present'"
+
+# Cron
+- name: Remove cronjob entry for service {{ service.name }}"
+  become: true
+  ansible.builtin.cron:
+    name: "borg backup service {{ service.name }}"
+    state: absent
+  when: "(service.when is defined and service.when == 'never') or (service.state | default('present')) == 'absent'"
 
 - name: "Create cronjob for backup for service {{ service.name }}"
   become: true
@@ -18,4 +26,4 @@
     month: "{{ service.when.month | default('*') }}"
     day: "{{ service.when.day | default('*') }}"
     job: "/usr/local/sbin/borg-agent-{{ service.name }} -cron"
-  when: (service.state | default('present')) == 'present'
+  when: "(service.when is not defined or service.when != 'never') and (service.state | default('present')) == 'present'"

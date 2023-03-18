@@ -6,7 +6,7 @@
     owner: root
     group: root
     mode: '0700'
-  when: (service.state | default('present')) == 'present'
+  when: "(service.state | default('present')) == 'present'"
 
 # Anacron
 - name: "Create anacron entry for backup for service {{ service.name }}"
@@ -20,14 +20,14 @@
     owner: root
     group: root
     mode: '0700'
-  when: restic_agent_cron == 'anacron' and (service.when is not defined or service.when != "never") and (service.state | default('present')) == 'present'
+  when: "restic_agent_cron == 'anacron' and (service.when is not defined or service.when != 'never') and (service.state | default('present')) == 'present'"
 
 - name: Remove old anacron entry for backup for service {{ service.name }}"
   become: true
   file:
     path: /etc/cron.daily/restic-agent-{{ service.name }}
     state: absent
-  when: restic_agent_cron != 'anacron' or (service.when is defined and service.when == "never") or (service.state | default('present')) == 'absent'
+  when: "restic_agent_cron != 'anacron' or (service.when is defined and service.when == 'never') or (service.state | default('present')) == 'absent'"
 
 # Cron
 - name: Remove cronjob entry for service {{ service.name }}"
@@ -35,7 +35,7 @@
   ansible.builtin.cron:
     name: "restic-agent-{{ service.name }}"
     state: absent
-  when: restic_agent_cron != 'cron' or (service.when is defined and service.when == "never") or (service.state | default('present')) == 'absent'
+  when: "restic_agent_cron != 'cron' or (service.when is defined and service.when == 'never') or (service.state | default('present')) == 'absent'"
 
 - name: "Create cronjob for backup for service {{ service.name }}"
   become: true
@@ -47,4 +47,4 @@
     month: "{{ service.when.month | default('*') }}"
     day: "{{ service.when.day | default('*') }}"
     job: "/usr/local/sbin/restic-agent-{{ service.name }} -cron"
-  when: restic_agent_cron == 'cron' and (service.when is not defined or service.when != "never") and (service.state | default('present')) == 'present'
+  when: "restic_agent_cron == 'cron' and (service.when is not defined or service.when != 'never') and (service.state | default('present')) == 'present'"

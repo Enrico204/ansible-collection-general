@@ -118,4 +118,32 @@ nice -n 19 $IONICE restic backup \
 
 {# Step 3: delete the backup #}
 rm -rf /var/opt/gitlab/backups/*
+
+{% elif service.type == 'proxmox' %}
+TARGET_IS_PRESENT=0
+set +e
+if [ "$(pct list | grep -E '^\s*{{ service.vmid }}\s')" != "" ]; then
+    {# The LXC is in this host #}
+    TARGET_IS_PRESENT=1
+elif [ "$(qm list | grep -E '^\s*{{ service.vmid }}\s')" != "" ]; then
+    {# The VM is in this host #}
+    TARGET_IS_PRESENT=1
+fi
+set -e
+
+if [ "$TARGET_IS_PRESENT" == "1" ]; then
+    vzdump "{{ service.vmid }}" \
+        --compress 0 \
+        --mode snapshot \
+        --remove 0 \
+        --stdout 1 \
+        --quiet 1 \
+        | restic backup  \
+        --host="{{ service.name }}"     \
+        --stdin                         \
+        --stdin-filename "{{ service.filename | default('stdin.tar') }}" \
+        {{ restic_agent_custom_opts }}
+elif [ $BORG_LOGGING = "--verbose" ]; then
+    printf "VM/LXC {{ service.vmid }} skipped as it's not present in this host of the cluster\n"
+fi
 {% endif %}
