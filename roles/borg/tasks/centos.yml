@@ -2,8 +2,29 @@
     apt:
       cache_valid_time: 86400
   block:
-    - name: Install packaged Borg Backup software
+    - name: Enable EPEL repository and install config manager
       become: true
       ansible.builtin.dnf:
-        pkg: borgbackup
+        pkg:
+          - epel-release
+          - "dnf-command(config-manager)"
+        state: present
+
+    - name: Check if PowerTools are enabled
+      become: true
+      shell: "[[ -z $(/usr/bin/dnf -q repolist --enabled powertools) ]] && echo disabled || echo enabled"
+      changed_when: false
+      register: powertools
+
+    - name: Enable PowerTools
+      become: true
+      command: dnf config-manager --set-enabled powertools
+      when: "powertools.stdout == 'disabled'"
+
+    - name: Install packaged Borg Backup software and dependencies
+      become: true
+      ansible.builtin.dnf:
+        pkg:
+          - borgbackup
+          - bzip2
         state: present
