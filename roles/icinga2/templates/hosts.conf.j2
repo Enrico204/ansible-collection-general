@@ -31,8 +31,18 @@ object Host "{{ host }}" {
     vars.os = "Linux"
     {% endif %}
 
+    {% if 'ansible_virtualization_type' in hostvars[host] and hostvars[host]["ansible_virtualization_type"] == 'lxc' %}
+    vars.lxc = true
+    {% else %}
+    vars.lxc = false
+    {% endif %}
+
     {% if 'icinga2_zfs_memory' in hostvars[host] and hostvars[host]["icinga2_zfs_memory"] %}
     vars.zfs_memory = true
+    {% endif %}
+
+    {% if 'icinga2_systemd' in hostvars[host] and hostvars[host]['icinga2_systemd'] %}
+    vars.systemd = true
     {% endif %}
 
     {% if 'icinga2_synology' in hostvars[host] and hostvars[host]['icinga2_synology'] %}

@@ -14,7 +14,7 @@ apply Service "tcp" {
 apply Service "snmp-load" {
   import "generic-service"
   check_command = "snmp-load"
-  assign where host.vars.snmp
+  assign where host.vars.snmp && !host.vars.lxc
 }
 
 apply Service "snmp-memory" {
@@ -61,6 +61,12 @@ apply Service "snmp-dnf" {
   import "generic-service"
   check_command = "snmp-dnf"
   assign where host.vars.snmp && host.vars.centos && host.vars.os == "Linux"
+}
+
+apply Service "snmp-systemd" {
+  import "generic-service"
+  check_command = "snmp-systemd"
+  assign where host.vars.snmp && host.vars.systemd
 }
 
 {# Mikrotik #}

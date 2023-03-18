@@ -32,7 +32,7 @@ fi
 
 OIDVAL="$(snmpget -t 10 -Oqv -c $COMMUNITY -v 2c $HOST $OID | tr -d '"')"
 if [ "$OIDVAL" == "No Such Instance currently exists at this OID" ]; then
-    echo "Error querying ID: $OIDVAL"
+    echo "CRITICAL: Error querying ID: $OIDVAL"
     exit 2
 fi
 

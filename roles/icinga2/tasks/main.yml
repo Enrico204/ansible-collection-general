@@ -87,3 +87,4 @@
         - check_snmp_apt.sh
         - check_snmp_dnf.sh
         - check_snmp_synology.sh
+        - check_snmp_systemd.sh

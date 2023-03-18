@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -eou pipefail
 
-OID=iso.3.6.1.4.1.8072.1.3.2.3.1.1.3.97.112.116
+OID=iso.3.6.1.4.1.8072.1.3.2.3.1.1.7.115.121.115.116.101.109.100
 
 HOST=""
 COMMUNITY=""
@@ -38,32 +38,16 @@ fi
 
 LINE=($OIDVAL)
 
-if [ "${LINE[0]}" == "-1" ]; then
-    printf "CRITICAL: No update information available. Run apt update to refresh index"
+if [ "$OIDVAL" == "" ]; then
+    printf "CRITICAL: No systemd information available."
     exit 2
-fi
-
-PKGS="${LINE[@]:6}"
-
-if [ ${LINE[5]} -gt 0 ]; then
-    printf "CRITICAL: %d security updates pending: %s\n" ${LINE[5]} "$PKGS"
+elif [ "$OIDVAL" == "degraded" ]; then
+    printf "CRITICAL: Systemd status degrated"
     exit 2
-fi
-
-NOWTS=$(date +%s)
-ONE_MONTH=$(($NOWTS - 2592000))
-if [ ${LINE[4]} -lt $ONE_MONTH ]; then
-    printf "WARNING: update not checked in 30 days\n"
+elif [ "$OIDVAL" != "running" ]; then
+    printf "WARNING: Systemd status $OIDVAL"
     exit 1
 fi
 
-EXITSTATUS=0
-if [ ${LINE[0]} -gt 0 ]; then
-    printf "WARNING: "
-    EXITSTATUS=1
-else
-    printf "OK: "
-fi
-
-printf "%i updates pending (%i new, %i to remove, %i kept back): %s\n" ${LINE[0]} ${LINE[1]} ${LINE[2]} ${LINE[3]} "$PKGS"
-exit $EXITSTATUS
+printf "OK: Systemd status $OIDVAL"
+exit 0

@@ -118,6 +118,23 @@ object CheckCommand "snmp-dnf" {
     }
 }
 
+object CheckCommand "snmp-systemd" {
+    import "ipv4-or-ipv6"
+
+    command = [ "/usr/local/bin/check_snmp_systemd.sh" ]
+
+    arguments = {
+            "-H" = {
+                    value = "$check_address$"
+                    description = "Host address"
+            }
+            "-C" = {
+                    value = "$snmp_community$"
+                    description ="SNMP community"
+            }
+    }
+}
+
 object CheckCommand "snmp-synology" {
     import "ipv4-or-ipv6"
 
