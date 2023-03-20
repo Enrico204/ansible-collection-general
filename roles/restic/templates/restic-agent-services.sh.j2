@@ -27,7 +27,7 @@ fi
 {% if service.type == 'mysql' %}
 # Use MySQLdump for dumping one or more databases to stdout
 nice -n 19 $IONICE mysqldump -h "{{ service.host }}" -P {{ service.port | default(3306) }} -u "{{ service.user }}" -p"{{ service.pass }}" \
-    --single-transaction --opt -R \
+    --opt --single-transaction --routines --triggers -R \
     {% if service.databases is defined %} --databases {{ service.databases | join(" ") }} {% else %} --all-databases {% endif %} \
     | sed -e 's/^CREATE DEFINER=.* \(FUNCTION\|PROCEDURE\)/CREATE \1/' \
     | restic backup  \
