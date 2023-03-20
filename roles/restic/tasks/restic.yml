@@ -17,6 +17,7 @@
     pkg:
       - restic
     state: present
+    default_release: "o=Netsplit,n=bullseye,c="
   when: ansible_os_family == 'Debian'
 
 # Restic in dnf is too old
