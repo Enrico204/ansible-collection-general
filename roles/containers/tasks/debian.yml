@@ -49,6 +49,7 @@
         sysctl_set: true
         state: present
         reload: true
+      when: 'not (ansible_virtualization_role == "guest" and ansible_virtualization_type == "lxc")'
 
     # Configure docker local proxy + local proxy CA
     - name: Creating docker dynamic config dir for systemd
