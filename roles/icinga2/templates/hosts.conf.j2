@@ -100,6 +100,9 @@ object Host "{{ host }}" {
         {% if 'expect' in httpsvc %}
         http_expect = "{{ httpsvc.expect }}"
         {% endif %}
+        {% if 'path' in httpsvc %}
+        http_uri = "{{ httpsvc.path }}"
+        {% endif %}
     }
     {% endfor %}
 
@@ -113,6 +116,9 @@ object Host "{{ host }}" {
         {% endif %}
         http_ssl = true
         http_sni = true
+        {% if 'path' in httpsvc %}
+        http_uri = "{{ httpsvc.path }}"
+        {% endif %}
     }
     vars.ssl["{{ httpsvc.host }}"] = {
         ssl_address = "{{ ipaddr }}"
