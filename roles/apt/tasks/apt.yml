@@ -1,0 +1,37 @@
+##### APT CONFIG: PROXY
+- name: Remove previous APT local proxy config from Debian installer
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/apt/apt.conf
+    state: absent
+    regexp: "^Acquire::http::Proxy"
+
+- name: Unset APT local proxy
+  become: true
+  file:
+    path: /etc/apt/apt.conf.d/99proxy
+    state: absent
+  when: apt_proxy is not defined or apt_proxy == ''
+
+- name: Set APT local proxy
+  become: true
+  template:
+    src: 99proxy.j2
+    dest: /etc/apt/apt.conf.d/99proxy
+    mode: 0755
+  when: apt_proxy is defined
+
+
+# Per platform playbooks
+- name: Debian
+  import_tasks: debian.yml
+  when: (ansible_distribution_release == 'bullseye' or ansible_distribution_release == 'bookworm') and ansible_distribution == 'Debian'
+
+- name: Ubuntu
+  import_tasks: ubuntu.yml
+  when: ansible_distribution == 'Ubuntu'
+
+
+##### AUTO-UPDATE
+- name: unattended-upgrades
+  import_tasks: unattended-upgrades.yml

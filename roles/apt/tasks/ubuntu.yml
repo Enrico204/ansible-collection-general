@@ -14,34 +14,65 @@
     mode: 0755
   when: not apt_phased_updates or apt_machine_id is defined
 
-##### APT CONFIG: PROXY
-- name: Remove previous APT local proxy config from Ubuntu installer
+##### SOURCES.LIST
+- name: Set empty sources.list
   become: true
-  ansible.builtin.lineinfile:
-    path: /etc/apt/apt.conf
-    state: absent
-    regexp: "^Acquire::http::Proxy"
+  copy:
+    content: "# Source files are in /etc/apt/sources.list.d/"
+    dest: /etc/apt/sources.list
+    owner: root
+    group: root
+    mode: 0644
+  notify: ["Update APT"]
 
-- name: Unset APT local proxy
+- name: Set apt binary repositories
   become: true
-  file:
-    path: /etc/apt/apt.conf.d/99proxy
-    state: absent
-  when: apt_proxy is not defined or apt_proxy == ''
+  copy:
+    content: |
+      deb {{ apt_ubuntu_mirror }} {{ ansible_distribution_release }} main restricted universe multiverse
+      deb {{ apt_ubuntu_mirror }} {{ ansible_distribution_release }}-updates main restricted universe multiverse
+      deb {{ apt_ubuntu_security_mirror }} {{ ansible_distribution_release }}-security main restricted universe multiverse
+      deb {{ apt_ubuntu_mirror }} {{ ansible_distribution_release }}-backports main restricted universe multiverse
+    dest: /etc/apt/sources.list.d/20-ubuntu-mirrors.list
+    owner: root
+    group: root
+    mode: 0644
+  notify: ["Update APT"]
 
-- name: Set APT local proxy
+- name: Set apt binary repositories fallback
   become: true
-  template:
-    src: 99proxy.j2
-    dest: /etc/apt/apt.conf.d/99proxy
-    mode: 0755
-  when: apt_proxy is defined
+  copy:
+    content: |
+      deb http://archive.ubuntu.com/ubuntu/ {{ ansible_distribution_release }} main restricted universe multiverse
+      deb http://archive.ubuntu.com/ubuntu/ {{ ansible_distribution_release }}-updates main restricted universe multiverse
+      deb http://security.ubuntu.com/ubuntu {{ ansible_distribution_release }}-security main restricted universe multiverse
+      deb http://archive.ubuntu.com/ubuntu/ {{ ansible_distribution_release }}-backports main restricted universe multiverse
+    dest: /etc/apt/sources.list.d/50-ubuntu-fallback.list
+    owner: root
+    group: root
+    mode: 0644
+  when: apt_ubuntu_mirror != "http://archive.ubuntu.com/ubuntu/" and apt_mirror_fallback
+  notify: ["Update APT"]
 
-##### OTHERS
-- name: Remove unattended upgrades
+- name: Remove apt binary repositories fallback
   become: true
-  apt:
+  copy:
+    dest: /etc/apt/sources.list.d/50-ubuntu-fallback.list
     state: absent
-    pkg:
-      - unattended-upgrades
-    purge: true
+  when: not apt_mirror_fallback
+  notify: ["Update APT"]
+
+- name: Set apt sources repositories
+  become: true
+  copy:
+    content: |
+      deb-src http://archive.ubuntu.com/ubuntu/ {{ ansible_distribution_release }} main restricted universe multiverse
+      deb-src http://archive.ubuntu.com/ubuntu/ {{ ansible_distribution_release }}-updates main restricted universe multiverse
+      deb-src http://security.ubuntu.com/ubuntu {{ ansible_distribution_release }}-security main restricted universe multiverse
+      deb-src http://archive.ubuntu.com/ubuntu// {{ ansible_distribution_release }}-backports main restricted universe multiverse
+    dest: /etc/apt/sources.list.d/60-ubuntu-sources.list
+    owner: root
+    group: root
+    mode: 0644
+  when: apt_sources
+  notify: ["Update APT"]

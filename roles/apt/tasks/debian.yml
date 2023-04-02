@@ -1,26 +1,3 @@
-##### APT CONFIG: PROXY
-- name: Remove previous APT local proxy config from Debian installer
-  become: true
-  ansible.builtin.lineinfile:
-    path: /etc/apt/apt.conf
-    state: absent
-    regexp: "^Acquire::http::Proxy"
-
-- name: Unset APT local proxy
-  become: true
-  file:
-    path: /etc/apt/apt.conf.d/99proxy
-    state: absent
-  when: apt_proxy is not defined or apt_proxy == ''
-
-- name: Set APT local proxy
-  become: true
-  template:
-    src: 99proxy.j2
-    dest: /etc/apt/apt.conf.d/99proxy
-    mode: 0755
-  when: apt_proxy is defined
-
 ##### SOURCES.LIST
 - name: Set empty sources.list
   become: true
@@ -98,15 +75,7 @@
 - name: Executing all handlers
   meta: flush_handlers
 
-- name: Remove unattended upgrades
-  become: true
-  apt:
-    state: absent
-    pkg:
-      - unattended-upgrades
-    purge: true
-
-- name: Add Fast Track repository
+- name: Add Fast Track repository keyring
   become: true
   apt:
     pkg:

@@ -1,0 +1,93 @@
+- name: Ensure unattended upgrades are removed
+  become: true
+  apt:
+    state: absent
+    pkg:
+      - unattended-upgrades
+      - apt-listchanges
+    purge: true
+  when: not apt_auto_update
+
+- name: Ensure unattended upgrades are installed
+  become: true
+  apt:
+    state: present
+    pkg:
+      - unattended-upgrades
+      - apt-listchanges
+    purge: true
+  when: apt_auto_update
+
+- name: Ensure unattended upgrades are enabled
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/apt/apt.conf.d/20auto-upgrades
+    regexp: '^/?/? ?APT::Periodic::Update-Package-Lists "'
+    line: 'APT::Periodic::Update-Package-Lists "1";'
+    state: present
+    create: true
+  when: apt_auto_update
+
+- name: Ensure auto update package list is enabled
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/apt/apt.conf.d/20auto-upgrades
+    regexp: '^/?/? ?APT::Periodic::Unattended-Upgrade "'
+    line: 'APT::Periodic::Unattended-Upgrade "1";'
+    state: present
+    create: true
+  when: apt_auto_update
+
+- name: Ensure unattended upgrades notification e-mail is set
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/apt/apt.conf.d/50unattended-upgrades
+    regexp: '^/?/? ?Unattended-Upgrade::Mail "'
+    line: 'Unattended-Upgrade::Mail "{{ apt_auto_update_email_rcpt }}";'
+    state: present
+  when: apt_auto_update
+
+- name: Ensure unattended upgrades notification e-mail condition is set
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/apt/apt.conf.d/50unattended-upgrades
+    regexp: '^/?/? ?Unattended-Upgrade::MailReport "'
+    line: 'Unattended-Upgrade::MailReport "{{ apt_auto_update_email_when }}";'
+    state: present
+  when: apt_auto_update
+
+- name: Ensure unattended upgrades logging to syslog is enabled
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/apt/apt.conf.d/50unattended-upgrades
+    regexp: '^/?/? ?Unattended-Upgrade::SyslogEnable "'
+    line: 'Unattended-Upgrade::SyslogEnable "true";'
+    state: present
+  when: apt_auto_update
+
+- name: Ensure unattended upgrades auto-reboot is disabled
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/apt/apt.conf.d/50unattended-upgrades
+    regexp: '^/?/? ?Unattended-Upgrade::Automatic-Reboot "'
+    line: 'Unattended-Upgrade::Automatic-Reboot "false";'
+    state: present
+  when: apt_auto_update and apt_auto_update_reboot_at == "never"
+
+- name: Ensure unattended upgrades auto-reboot is enabled
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/apt/apt.conf.d/50unattended-upgrades
+    regexp: '^/?/? ?Unattended-Upgrade::Automatic-Reboot "'
+    line: 'Unattended-Upgrade::Automatic-Reboot "true";'
+    state: present
+  when: apt_auto_update and apt_auto_update_reboot_at != "never"
+
+- name: Ensure unattended upgrades auto-reboot time is configured
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/apt/apt.conf.d/50unattended-upgrades
+    regexp: '^/?/? ?Unattended-Upgrade::Automatic-Reboot-Time "'
+    line: 'Unattended-Upgrade::Automatic-Reboot-Time "{{ apt_auto_update_reboot_at }}";'
+    state: present
+  when: apt_auto_update and apt_auto_update_reboot_at != "never"

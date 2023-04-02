@@ -1,10 +1,28 @@
-debian_fasttrack: false
 apt_sources: false
 apt_mirror_fallback: true
-apt_mirror: http://deb.debian.org/debian
-apt_security_mirror: http://deb.debian.org/debian-security
 apt_proxy_skip_for: []
 apt_phased_updates: true
 
+# Debian mirrors
+apt_mirror: http://deb.debian.org/debian
+apt_security_mirror: http://deb.debian.org/debian-security
+debian_fasttrack: false
+
+# Ubuntu mirrors
+apt_ubuntu_mirror: http://archive.ubuntu.com/ubuntu/
+apt_ubuntu_security_mirror: http://security.ubuntu.com/ubuntu
+
+# Add Proxmox mirrors
 apt_pve_enterprise: false
 apt_pve_nosubscription: false
+
+# Install updates automatically
+apt_auto_update: false
+
+# Send notification on errors and updates to this e-mail
+apt_auto_update_email_rcpt: root
+# and warn only when: "always", "only-on-error", or "on-change"
+apt_auto_update_email_when: "on-change"
+
+# Reboot at specific local time. Possible values: "never", "now", or a time in HH:MM
+apt_auto_update_reboot_at: "never"
