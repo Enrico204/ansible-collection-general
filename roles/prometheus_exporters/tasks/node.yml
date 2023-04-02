@@ -21,12 +21,19 @@
         name:
           - prometheus-node-exporter
 
-- name: Add systemd configuration
+# Remove old configuration from this playbook as the package already contains a systemd service
+- name: Stop old systemd configuration
   become: true
-  copy:
-    src: node-exporter.service
-    dest: /etc/systemd/system/node-exporter.service
-    owner: root
-    group: root
-    mode: 0644
-  notify: "Restart node exporter"
+  systemd:
+    state: stopped
+    name: node-exporter
+    enabled: false
+
+- name: Remove old systemd configurations
+  become: true
+  file:
+    path: /etc/systemd/system/node-exporter.service
+    state: absent
+  notify:
+    - "Reload systemd"
+    - "Reset node-exporter failed"

@@ -6,10 +6,11 @@
     daemon_reload: true
     enabled: true
 
-- name: Restart node exporter
+- name: Reload systemd
   become: true
   systemd:
-    state: restarted
-    name: exporter-smartctl
     daemon_reload: true
-    enabled: true
+
+- name: Reset node-exporter failed
+  become: true
+  command: systemctl reset-failed node-exporter
