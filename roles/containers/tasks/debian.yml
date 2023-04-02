@@ -191,3 +191,13 @@
       when: not docker_manual_log_config
       notify: "Reload docker"
 
+# Configure Podman to use ZFS
+    - name: Configure ZFS driver for Podman
+      become: true
+      lineinfile:
+        path: /etc/containers/storage.conf
+        regexp: '^driver ='
+        line: 'driver = "zfs"'
+        insertafter: '^\[storage\]'
+        state: present
+      when: '"ZFS" in ansible_cmdline["root"]'
