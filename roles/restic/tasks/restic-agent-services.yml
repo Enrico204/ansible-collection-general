@@ -6,7 +6,17 @@
     owner: root
     group: root
     mode: '0700'
-  when: "(service.state | default('present')) == 'present'"
+  when: "(service.state | default('present')) == 'present' and not restic_stdin_experiment"
+
+- name: "Create new restic agent executable for service {{ service.name }} (experiment)"
+  become: true
+  template:
+    src: restic-agent-services-test.sh.j2
+    dest: "/usr/local/sbin/restic-agent-{{ service.name }}"
+    owner: root
+    group: root
+    mode: '0700'
+  when: "(service.state | default('present')) == 'present' and restic_stdin_experiment"
 
 # Anacron
 - name: "Create anacron entry for backup for service {{ service.name }}"

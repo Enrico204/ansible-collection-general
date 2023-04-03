@@ -1,0 +1,166 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+export PATH="$PATH:/usr/bin/:/usr/local/bin/"
+
+export RESTIC_REPOSITORY='{{ restic_agent_repository }}'
+{% if restic_agent_password != "" %}
+export RESTIC_PASSWORD='{{ restic_agent_password }}'
+{% endif %}
+
+{# In scheduled tasks, add a random delay #}
+if [ "${1:-}" == "-cron" ]; then
+{% if restic_agent_delayed_start_max > 0 %}
+	sleep $(($RANDOM % {{ restic_agent_delayed_start_max }}))
+{% endif %}
+
+    {# Redirect stdout and stderr to syslog #}
+    {#exec 3>&1 4>&2
+    #exec 1> >(logger -t restic-agent -p local0.info) 2> >(logger -t restic-agent -p local0.err) #}
+
+fi
+
+IONICE="ionice -c 3"
+if ! command -v ionice &> /dev/null
+then
+	IONICE=""
+fi
+
+{# Tidy cache #}
+restic cache --cleanup
+
+{% if service.type == 'mysql' %}
+{# Use MySQLdump for dumping one or more databases to stdout #}
+nice -n 19 $IONICE restic backup  \
+    --host="{{ service.name }}"     \
+	--stdin-from-command \
+    --stdin-filename "{{ service.filename | default('stdin.sql') }}" \
+    {{ restic_agent_custom_opts }} \
+    -- \
+    mysqldump -h "{{ service.host }}" -P {{ service.port | default(3306) }} -u "{{ service.user }}" -p"{{ service.pass }}" \
+    --opt --single-transaction --routines --triggers -R \
+    {% if service.databases is defined %} --databases {{ service.databases | join(" ") }} {% else %} --all-databases {% endif %}
+
+{% elif service.type == 'pgsql' %}
+{# PostgreSQL connection string need to be specified in a file named `.pgpass`. So, only one process at time can run #}
+{# Use flock to acquire a lock, fail after 4 hours #}
+umask 0077
+exec 200>/tmp/pgpass-lock
+flock -w 14400 200
+
+{# Create pgpass #}
+remove_pgpass() { rm -f ~/.pgpass; }
+trap remove_pgpass EXIT
+printf "%s:%d:%s:%s:%s" "{{ service.host }}" {{ service.port | default(5432) }} "{{ service.database }}" "{{ service.user }}" "{{ service.pass }}" > ~/.pgpass
+
+PGOPTIONS='--client-min-messages=warning' nice -n 19 $IONICE restic backup  \
+    --host="{{ service.name }}"     \
+	--stdin-from-command \
+    --stdin-filename "{{ service.filename | default('stdin.bak') }}" \
+    {{ restic_agent_custom_opts }} \
+    -- \
+    pg_dump -h "{{ service.host }}" -p {{ service.port | default(5432) }} -U "{{ service.user }}" \
+    --compress=0 -Fc {{ service.database }}
+
+remove_pgpass
+flock -u 200
+
+{% elif service.type == 'mikrotik' %}
+eval $(ssh-agent -s | grep -v echo)
+{# Mikrotik requires an SSH key #}
+ssh-add - 2>/dev/null <<EOF
+{{ service.ssh_privkey }}
+EOF
+
+restic backup  \
+    --host="{{ service.name }}"     \
+	--stdin-from-command \
+    --stdin-filename "{{ service.filename | default('stdin.rsc') }}" \
+    {{ restic_agent_custom_opts }} \
+    -- \
+    ssh -o StrictHostKeyChecking=no \
+    -p {{ service.port | default(22) }} \
+    "{{ service.user }}@{{ service.host }}" \
+    "/export"
+
+ssh-add -D 2> /dev/null
+kill $SSH_AGENT_PID
+
+{% elif service.type == 'redis' %}
+restic backup  \
+    --host="{{ service.name }}"     \
+	--stdin-from-command \
+    --stdin-filename "{{ service.filename | default('stdin') }}" \
+    {{ restic_agent_custom_opts }} \
+    -- \
+    redis-cli -h "{{ service.host }}" \
+    -p {{ service.port | default(6379) }} \
+    -a "{{ service.pass }}" \
+    --rdb -
+
+{% elif service.type == 'portainer' %}
+restic backup  \
+    --host="{{ service.name }}"     \
+	--stdin-from-command \
+    --stdin-filename "{{ service.filename | default('stdin.tar') }}" \
+    {{ restic_agent_custom_opts }} \
+    -- \
+    /bin/bash -c "curl -k -s \
+        -H 'X-API-Key: {{ service.apikey }}' \
+        -H 'Content-Type: application/json' \
+        -d '{}' \
+        -X POST \
+        {{ service.proto | default('https') }}://{{ service.host }}:{{ service.port | default(9443) }}/api/backup \
+        | gunzip"
+
+{% elif service.type == 'gitlab' %}
+rm -rf /var/opt/gitlab/backups/*
+{# Step 1: do a GitLab named backup #}
+/opt/gitlab/bin/gitlab-rake gitlab:backup:create CRON=1 GZIP_RSYNCABLE=yes SKIP=builds,artifacts BACKUP=restic SKIP=tar
+
+{# Step 2: read the backup into restic #}
+nice -n 19 $IONICE restic backup \
+	{{ restic_agent_custom_opts }} \
+	/var/opt/gitlab/backups
+
+{# Step 3: delete the backup #}
+rm -rf /var/opt/gitlab/backups/*
+
+{% elif service.type == 'proxmox' %}
+TARGET_IS_PRESENT=0
+set +e
+if [ "$(pct list | grep -E '^\s*{{ service.vmid }}\s')" != "" ]; then
+    {# The LXC is in this host #}
+    TARGET_IS_PRESENT=1
+elif [ "$(qm list | grep -E '^\s*{{ service.vmid }}\s')" != "" ]; then
+    {# The VM is in this host #}
+    TARGET_IS_PRESENT=1
+fi
+set -e
+
+if [ "$TARGET_IS_PRESENT" == "1" ]; then
+    restic backup  \
+        --host="{{ service.name }}"     \
+        --stdin-from-command \
+        --stdin-filename "{{ service.filename | default('stdin.tar') }}" \
+        {{ restic_agent_custom_opts }} \
+        -- \
+        vzdump "{{ service.vmid }}" \
+        --compress 0 \
+        --mode snapshot \
+        --remove 0 \
+        --stdout 1 \
+        --quiet 1
+elif [ $BORG_LOGGING = "--verbose" ]; then
+    printf "VM/LXC {{ service.vmid }} skipped as it's not present in this host of the cluster\n"
+fi
+{% endif %}
+
+{# Mark old backups for GC #}
+restic forget \
+    --host="{{ service.name }}" \
+	--keep-daily    7   \
+	--keep-weekly   4   \
+	--keep-monthly  6   \
+	--keep-tag MANUAL   \
+	--group-by host

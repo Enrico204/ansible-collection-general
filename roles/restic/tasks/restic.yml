@@ -18,7 +18,16 @@
       - restic
     state: present
     default_release: "o=Netsplit,n=bullseye,c="
-  when: ansible_os_family == 'Debian'
+  when: ansible_os_family == 'Debian' and not restic_stdin_experiment
+
+- name: Install restic package (experiment)
+  become: true
+  apt:
+    pkg:
+      - restic-stdin-from-command
+    state: present
+    default_release: "o=Netsplit,n=bullseye,c="
+  when: ansible_os_family == 'Debian' and restic_stdin_experiment
 
 # Restic in dnf is too old
 # - name: Install restic package

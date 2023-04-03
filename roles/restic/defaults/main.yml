@@ -107,3 +107,7 @@ architectures:
   x86_64: amd64
   armv6l: arm
   armv7l: arm
+
+
+
+restic_stdin_experiment: false
