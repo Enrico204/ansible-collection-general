@@ -8,18 +8,19 @@
         path: /usr/local/bin/borg
         state: absent
 
+    - name: Install packaged Borg Backup software from backports
+      become: true
+      apt:
+        pkg:
+          - borgbackup
+        state: present
+        default_release: bullseye-backports
+      when: ansible_distribution_release == 'bullseye'
+
     - name: Install packaged Borg Backup software
       become: true
       apt:
         pkg:
           - borgbackup
         state: present
-      when: ansible_distribution_release == 'bullseye'
-
-    - name: Install packaged Borg Backup software from backports
-      become: true
-      apt:
-        pkg:
-          - borgbackup
-        default_release: buster-backports
-      when: ansible_distribution_release == 'buster'
+      when: ansible_distribution_release == 'bookworm'

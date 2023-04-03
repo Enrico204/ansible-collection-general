@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -eo pipefail
+set -euo pipefail
 
 export BORG_REPO='{{ borg_agent_base_repository }}/{{ inventory_hostname }}'
 export BORG_PASSPHRASE='{{ borg_agent_password }}'
@@ -9,7 +9,7 @@ export BORG_LOGGING_CREATE="--verbose -p --list --stats"
 
 export PATH="$PATH:/usr/bin/:/usr/local/bin/"
 
-if [ "$1" == "-cron" ]; then
+if [ "${1:-}" == "-cron" ]; then
 {% if borg_agent_delayed_start_max > 0 %}
 	sleep $(($RANDOM % {{ borg_agent_delayed_start_max }}))
 {% endif %}

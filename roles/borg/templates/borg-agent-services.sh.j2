@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -eo pipefail
+set -euo pipefail
 
 export BORG_REPO='{{ borg_agent_base_repository }}/{{ service.name }}'
 export BORG_PASSPHRASE='{{ borg_agent_password }}'
@@ -9,7 +9,7 @@ export BORG_LOGGING_CREATE="--verbose -p --list --stats"
 
 export PATH="$PATH:/usr/bin/:/usr/local/bin/"
 
-if [ "$1" == "-cron" ]; then
+if [ "${1:-}" == "-cron" ]; then
 {% if borg_agent_delayed_start_max > 0 %}
 	sleep $(($RANDOM % {{ borg_agent_delayed_start_max }}))
 {% endif %}
@@ -70,20 +70,20 @@ fi
 
 {% if service.type == 'mysql' %}
 # Use MySQLdump for dumping one or more databases to stdout
-nice -n 19 $IONICE mysqldump -h "{{ service.host }}" -P {{ service.port | default(3306) }} -u "{{ service.user }}" -p"{{ service.pass }}" \
-    --opt --single-transaction --routines --triggers -R \
-    {% if service.databases is defined %} --databases {{ service.databases | join(" ") }} {% else %} --all-databases {% endif %} \
-    | sed -e 's/^CREATE DEFINER=.* \(FUNCTION\|PROCEDURE\)/CREATE \1/' \
-    | borg create \
+nice -n 19 $IONICE borg create \
     $BORG_LOGGING_CREATE            \
     --files-cache=disabled          \
     --filter AME                    \
     --compression lz4               \
     --stdin-name "{{ service.filename | default('stdin.sql') }}" \
+    --content-from-command          \
     {{ borg_agent_custom_opts }}    \
                                     \
     ::'{{ service.name }}-{now}'    \
-    -
+    -- \
+    mysqldump -h "{{ service.host }}" -P {{ service.port | default(3306) }} -u "{{ service.user }}" -p"{{ service.pass }}" \
+    --opt --single-transaction --routines --triggers -R \
+    {% if service.databases is defined %} --databases {{ service.databases | join(" ") }} {% else %} --all-databases {% endif %}
 
 {% elif service.type == 'pgsql' %}
 # PostgreSQL connection string need to be specified in a file named `.pgpass`. So, only one process at time can run
@@ -97,19 +97,19 @@ remove_pgpass() { rm -f ~/.pgpass; }
 trap remove_pgpass EXIT
 printf "%s:%d:%s:%s:%s" "{{ service.host }}" {{ service.port | default(5432) }} "{{ service.database }}" "{{ service.user }}" "{{ service.pass }}" > ~/.pgpass
 
-PGOPTIONS='--client-min-messages=warning' nice -n 19 $IONICE \
-    pg_dump -h "{{ service.host }}" -p {{ service.port | default(5432) }} -U "{{ service.user }}" \
-    --compress=0 -Fc {{ service.database }} \
-    | borg create \
+PGOPTIONS='--client-min-messages=warning' nice -n 19 $IONICE borg create \
     $BORG_LOGGING_CREATE            \
     --files-cache=disabled          \
     --filter AME                    \
     --compression lz4               \
     --stdin-name "{{ service.filename | default('stdin.bak') }}" \
+    --content-from-command          \
     {{ borg_agent_custom_opts }}    \
                                     \
     ::'{{ service.name }}-{now}'    \
-    -
+    -- \
+    pg_dump -h "{{ service.host }}" -p {{ service.port | default(5432) }} -U "{{ service.user }}" \
+    --compress=0 -Fc {{ service.database }}
 
 remove_pgpass
 flock -u 200
@@ -120,56 +120,58 @@ ssh-add - 2>/dev/null <<EOF
 {{ service.ssh_privkey }}
 EOF
 
-ssh -o StrictHostKeyChecking=no \
-    -p {{ service.port | default(22) }} \
-    "{{ service.user }}@{{ service.host }}" \
-    "/export"                       \
-    | borg create    \
+borg create    \
     $BORG_LOGGING_CREATE            \
     --files-cache=disabled          \
     --filter AME                    \
     --compression lz4               \
     --stdin-name "{{ service.filename | default('stdin.rsc') }}" \
+    --content-from-command          \
     {{ borg_agent_custom_opts }}    \
                                     \
     ::'{{ service.name }}-{now}'    \
-    -
+    -- \
+    ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 \
+    -p {{ service.port | default(22) }} \
+    "{{ service.user }}@{{ service.host }}" \
+    "/export"
 
 {% elif service.type == 'redis' %}
-redis-cli -h "{{ service.host }}" \
-    -p {{ service.port | default(6379) }} \
-    -a "{{ service.pass }}" \
-    --rdb -                         \
-    2>/dev/null                     \
-    | borg create    \
+borg create    \
     $BORG_LOGGING_CREATE            \
     --files-cache=disabled          \
     --filter AME                    \
     --compression lz4               \
     --stdin-name "{{ service.filename | default('stdin') }}" \
+    --content-from-command          \
     {{ borg_agent_custom_opts }}    \
                                     \
     ::'{{ service.name }}-{now}'    \
-    -
+    -- \
+    redis-cli -h "{{ service.host }}" \
+    -p {{ service.port | default(6379) }} \
+    -a "{{ service.pass }}" \
+    --rdb -
 
 {% elif service.type == 'portainer' %}
-curl -k -s \
-    -H 'X-API-Key: {{ service.apikey }}' \
-    -H 'Content-Type: application/json' \
-    -d '{}' \
-    -X POST \
-    {{ service.proto | default('https') }}://{{ service.host }}:{{ service.port | default(9443) }}/api/backup \
-    | gunzip \
-    | borg create    \
+borg create    \
     $BORG_LOGGING_CREATE            \
     --files-cache=disabled          \
     --filter AME                    \
     --compression lz4               \
     --stdin-name "{{ service.filename | default('stdin.tar') }}" \
+    --content-from-command          \
     {{ borg_agent_custom_opts }}    \
                                     \
     ::'{{ service.name }}-{now}'    \
-    -
+    -- \
+    /bin/bash -c "curl -k -s \
+        -H 'X-API-Key: {{ service.apikey }}' \
+        -H 'Content-Type: application/json' \
+        -d '{}' \
+        -X POST \
+        {{ service.proto | default('https') }}://{{ service.host }}:{{ service.port | default(9443) }}/api/backup \
+        | gunzip"
 
 {% elif service.type == 'gitlab' %}
 rm -rf /var/opt/gitlab/backups/*
@@ -202,22 +204,23 @@ fi
 set -e
 
 if [ "$TARGET_IS_PRESENT" == "1" ]; then
-    vzdump "{{ service.vmid }}" \
-        --compress 0 \
-        --mode snapshot \
-        --remove 0 \
-        --stdout 1 \
-        --quiet 1 \
-        | borg create    \
+    borg create    \
         $BORG_LOGGING_CREATE            \
         --files-cache=disabled          \
         --filter AME                    \
         --compression lz4               \
         --stdin-name "{{ service.filename | default('stdin.tar') }}" \
+        --content-from-command          \
         {{ borg_agent_custom_opts }}    \
                                         \
         ::'{{ service.name }}-{now}'    \
-        -
+        -- \
+        vzdump "{{ service.vmid }}" \
+        --compress 0 \
+        --mode snapshot \
+        --remove 0 \
+        --stdout 1 \
+        --quiet 1
 elif [ $BORG_LOGGING = "--verbose" ]; then
     printf "VM/LXC {{ service.vmid }} skipped as it's not present in this host of the cluster\n"
 fi
