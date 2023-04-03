@@ -39,7 +39,6 @@
     content: |
       deb http://deb.debian.org/debian {{ ansible_distribution_release }} main contrib non-free
       deb http://deb.debian.org/debian {{ ansible_distribution_release }}-updates main contrib non-free
-      deb http://security.debian.org/debian-security {{ ansible_distribution_release }}-security main contrib non-free
       deb http://deb.debian.org/debian {{ ansible_distribution_release }}-backports main contrib non-free
     dest: /etc/apt/sources.list.d/50-debian-fallback.list
     owner: root
@@ -48,11 +47,26 @@
   when: apt_mirror != "http://deb.debian.org/debian" and apt_mirror_fallback
   notify: ["Update APT"]
 
-- name: Remove apt binary repositories fallback
+- name: Set apt binary repositories fallback
   become: true
   copy:
-    dest: /etc/apt/sources.list.d/50-debian-fallback.list
+    content: |
+      deb http://security.debian.org/debian-security {{ ansible_distribution_release }}-security main contrib non-free
+    dest: /etc/apt/sources.list.d/50-debian-fallback-security.list
+    owner: root
+    group: root
+    mode: 0644
+  when: apt_security_mirror != "http://security.debian.org/debian-security" and apt_mirror_fallback
+  notify: ["Update APT"]
+
+- name: Remove apt binary repositories fallback
+  become: true
+  file:
+    path: "{{ item }}"
     state: absent
+  loop:
+    - /etc/apt/sources.list.d/50-debian-fallback.list
+    - /etc/apt/sources.list.d/50-debian-fallback-security.list
   when: not apt_mirror_fallback
   notify: ["Update APT"]
 

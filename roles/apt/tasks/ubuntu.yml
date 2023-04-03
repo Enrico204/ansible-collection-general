@@ -45,7 +45,6 @@
     content: |
       deb http://archive.ubuntu.com/ubuntu/ {{ ansible_distribution_release }} main restricted universe multiverse
       deb http://archive.ubuntu.com/ubuntu/ {{ ansible_distribution_release }}-updates main restricted universe multiverse
-      deb http://security.ubuntu.com/ubuntu {{ ansible_distribution_release }}-security main restricted universe multiverse
       deb http://archive.ubuntu.com/ubuntu/ {{ ansible_distribution_release }}-backports main restricted universe multiverse
     dest: /etc/apt/sources.list.d/50-ubuntu-fallback.list
     owner: root
@@ -54,11 +53,26 @@
   when: apt_ubuntu_mirror != "http://archive.ubuntu.com/ubuntu/" and apt_mirror_fallback
   notify: ["Update APT"]
 
-- name: Remove apt binary repositories fallback
+- name: Set apt binary repositories fallback
   become: true
   copy:
-    dest: /etc/apt/sources.list.d/50-ubuntu-fallback.list
+    content: |
+      deb http://security.ubuntu.com/ubuntu {{ ansible_distribution_release }}-security main restricted universe multiverse
+    dest: /etc/apt/sources.list.d/50-ubuntu-fallback-security.list
+    owner: root
+    group: root
+    mode: 0644
+  when: apt_ubuntu_security_mirror != "http://security.ubuntu.com/ubuntu" and apt_mirror_fallback
+  notify: ["Update APT"]
+
+- name: Remove apt binary repositories fallback
+  become: true
+  file:
+    path: "{{ item }}"
     state: absent
+  loop:
+    - /etc/apt/sources.list.d/50-ubuntu-fallback.list
+    - /etc/apt/sources.list.d/50-ubuntu-fallback-security.list
   when: not apt_mirror_fallback
   notify: ["Update APT"]
 
