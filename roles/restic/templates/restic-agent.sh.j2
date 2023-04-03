@@ -8,14 +8,16 @@ export RESTIC_REPOSITORY='{{ restic_agent_repository }}'
 export RESTIC_PASSWORD='{{ restic_agent_password }}'
 {% endif %}
 
+{# In scheduled tasks, add a random delay #}
 if [ "${1:-}" == "-cron" ]; then
 {% if restic_agent_delayed_start_max > 0 %}
 	sleep $(($RANDOM % {{ restic_agent_delayed_start_max }}))
 {% endif %}
 
-    # Redirect stdout and stderr to syslog
-    #exec 3>&1 4>&2
-    #exec 1> >(logger -t restic-agent -p local0.info) 2> >(logger -t restic-agent -p local0.err)
+    {# Redirect stdout and stderr to syslog #}
+    {#exec 3>&1 4>&2
+    #exec 1> >(logger -t restic-agent -p local0.info) 2> >(logger -t restic-agent -p local0.err) #}
+
 fi
 
 ## Pre-backup script
@@ -29,6 +31,9 @@ if ! command -v ionice &> /dev/null
 then
 	IONICE=""
 fi
+
+{# Tidy cache #}
+restic cache --cleanup
 
 nice -n 19 $IONICE restic backup \
 	--one-file-system \
@@ -48,3 +53,12 @@ nice -n 19 $IONICE restic backup \
 {{ restic_agent_post | default('') }}
 
 ## END post-backup script
+
+{# Mark old backups for GC #}
+restic forget \
+    --host="$(hostname)" \
+	--keep-daily    7   \
+	--keep-weekly   4   \
+	--keep-monthly  6   \
+	--keep-tag MANUAL   \
+	--group-by host

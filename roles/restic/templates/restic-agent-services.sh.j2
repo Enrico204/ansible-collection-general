@@ -8,14 +8,16 @@ export RESTIC_REPOSITORY='{{ restic_agent_repository }}'
 export RESTIC_PASSWORD='{{ restic_agent_password }}'
 {% endif %}
 
+{# In scheduled tasks, add a random delay #}
 if [ "${1:-}" == "-cron" ]; then
 {% if restic_agent_delayed_start_max > 0 %}
 	sleep $(($RANDOM % {{ restic_agent_delayed_start_max }}))
 {% endif %}
 
-    # Redirect stdout and stderr to syslog
-    #exec 3>&1 4>&2
-    #exec 1> >(logger -t restic-agent -p local0.info) 2> >(logger -t restic-agent -p local0.err)
+    {# Redirect stdout and stderr to syslog #}
+    {#exec 3>&1 4>&2
+    #exec 1> >(logger -t restic-agent -p local0.info) 2> >(logger -t restic-agent -p local0.err) #}
+
 fi
 
 IONICE="ionice -c 3"
@@ -23,6 +25,9 @@ if ! command -v ionice &> /dev/null
 then
 	IONICE=""
 fi
+
+{# Tidy cache #}
+restic cache --cleanup
 
 {% if service.type == 'mysql' %}
 # Use MySQLdump for dumping one or more databases to stdout
@@ -147,3 +152,12 @@ elif [ $BORG_LOGGING = "--verbose" ]; then
     printf "VM/LXC {{ service.vmid }} skipped as it's not present in this host of the cluster\n"
 fi
 {% endif %}
+
+{# Mark old backups for GC #}
+restic forget \
+    --host="{{ service.name }}" \
+	--keep-daily    7   \
+	--keep-weekly   4   \
+	--keep-monthly  6   \
+	--keep-tag MANUAL   \
+	--group-by host
