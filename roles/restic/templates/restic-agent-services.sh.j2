@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -eo pipefail
+set -euo pipefail
 
 export PATH="$PATH:/usr/bin/:/usr/local/bin/"
 
@@ -8,7 +8,7 @@ export RESTIC_REPOSITORY='{{ restic_agent_repository }}'
 export RESTIC_PASSWORD='{{ restic_agent_password }}'
 {% endif %}
 
-if [ "$1" == "-cron" ]; then
+if [ "${1:-}" == "-cron" ]; then
 {% if restic_agent_delayed_start_max > 0 %}
 	sleep $(($RANDOM % {{ restic_agent_delayed_start_max }}))
 {% endif %}
