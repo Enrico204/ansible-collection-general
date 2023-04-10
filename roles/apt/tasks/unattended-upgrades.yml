@@ -45,6 +45,7 @@
     regexp: '^/?/? ?Unattended-Upgrade::Mail "'
     line: 'Unattended-Upgrade::Mail "{{ apt_auto_update_email_rcpt }}";'
     state: present
+    create: true
   when: apt_auto_update
 
 - name: Ensure unattended upgrades notification e-mail condition is set
@@ -54,6 +55,7 @@
     regexp: '^/?/? ?Unattended-Upgrade::MailReport "'
     line: 'Unattended-Upgrade::MailReport "{{ apt_auto_update_email_when }}";'
     state: present
+    create: true
   when: apt_auto_update
 
 - name: Ensure unattended upgrades logging to syslog is enabled
@@ -63,6 +65,7 @@
     regexp: '^/?/? ?Unattended-Upgrade::SyslogEnable "'
     line: 'Unattended-Upgrade::SyslogEnable "true";'
     state: present
+    create: true
   when: apt_auto_update
 
 - name: Ensure unattended upgrades auto-reboot is disabled
@@ -72,6 +75,7 @@
     regexp: '^/?/? ?Unattended-Upgrade::Automatic-Reboot "'
     line: 'Unattended-Upgrade::Automatic-Reboot "false";'
     state: present
+    create: true
   when: apt_auto_update and apt_auto_update_reboot_at == "never"
 
 - name: Ensure unattended upgrades auto-reboot is enabled
@@ -81,6 +85,7 @@
     regexp: '^/?/? ?Unattended-Upgrade::Automatic-Reboot "'
     line: 'Unattended-Upgrade::Automatic-Reboot "true";'
     state: present
+    create: true
   when: apt_auto_update and apt_auto_update_reboot_at != "never"
 
 - name: Ensure unattended upgrades auto-reboot time is configured
@@ -90,4 +95,5 @@
     regexp: '^/?/? ?Unattended-Upgrade::Automatic-Reboot-Time "'
     line: 'Unattended-Upgrade::Automatic-Reboot-Time "{{ apt_auto_update_reboot_at }}";'
     state: present
+    create: true
   when: apt_auto_update and apt_auto_update_reboot_at != "never"
