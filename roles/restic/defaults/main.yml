@@ -94,6 +94,8 @@ restic_agent_custom_opts: ""
 restic_agent_services: []
 restic_agent_cron: "anacron"
 
+restic_cleanup: false
+
 rclone: false
 rclone_prune: false
 rclone_version: 1.57.0

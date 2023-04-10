@@ -54,6 +54,7 @@ nice -n 19 $IONICE restic backup \
 
 ## END post-backup script
 
+{% if restic_cleanup %}
 {# Mark old backups for GC #}
 restic forget \
     --host="$(hostname)" \
@@ -62,3 +63,4 @@ restic forget \
 	--keep-monthly  6   \
 	--keep-tag MANUAL   \
 	--group-by host
+{% endif %}

@@ -153,6 +153,7 @@ elif [ $BORG_LOGGING = "--verbose" ]; then
 fi
 {% endif %}
 
+{% if restic_cleanup %}
 {# Mark old backups for GC #}
 restic forget \
     --host="{{ service.name }}" \
@@ -161,3 +162,4 @@ restic forget \
 	--keep-monthly  6   \
 	--keep-tag MANUAL   \
 	--group-by host
+{% endif %}
