@@ -14,3 +14,4 @@
 - name: Reset node-exporter failed
   become: true
   command: systemctl reset-failed node-exporter
+  ignore_errors: true

@@ -28,6 +28,7 @@
     state: stopped
     name: node-exporter
     enabled: false
+  ignore_errors: true
 
 - name: Remove old systemd configurations
   become: true
