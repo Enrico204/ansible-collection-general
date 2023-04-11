@@ -4,6 +4,7 @@
   command: dpkg --print-architecture
   register: dpkg_arch
   changed_when: false
+  check_mode: false
 
 - name: Ensure requirements are installed
   become: true
