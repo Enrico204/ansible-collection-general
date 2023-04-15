@@ -17,9 +17,26 @@
     - name: Add node exporter
       become: true
       apt:
+        state: latest
+        name:
+          - prometheus-node-exporter
+        default_release: "o=Netsplit,n={{ ansible_distribution_release }},c="
+      when: ansible_distribution_release == 'bullseye'
+
+    - name: Add node exporter
+      become: true
+      apt:
         state: present
         name:
           - prometheus-node-exporter
+      when: ansible_distribution_release == 'bookworm'
+
+    - name: Add node exporter collectors if not installed
+      become: true
+      apt:
+        state: present
+        name:
+          - prometheus-node-exporter-collectors
 
 # Remove old configuration from this playbook as the package already contains a systemd service
 - name: Stop old systemd configuration
@@ -29,6 +46,7 @@
     name: node-exporter
     enabled: false
   ignore_errors: true
+  when: ansible_distribution_release == 'bullseye'
 
 - name: Remove old systemd configurations
   become: true
@@ -38,3 +56,59 @@
   notify:
     - "Reload systemd"
     - "Reset node-exporter failed"
+  when: ansible_distribution_release == 'bullseye'
+
+- name: Create systemd service
+  become: true
+  template:
+    src: exporter-node.service.j2
+    dest: "/etc/systemd/system/prometheus-node-exporter.service"
+    owner: root
+    group: root
+    mode: '0600'
+  notify: Restart node exporter
+  when: ansible_distribution_release == 'bullseye' and (ansible_virtualization_role == 'host' or ansible_virtualization_type != 'lxc')
+
+- name: Create systemd service for LXC
+  become: true
+  template:
+    src: exporter-node.lxc.service.j2
+    dest: "/etc/systemd/system/prometheus-node-exporter.service"
+    owner: root
+    group: root
+    mode: '0600'
+  notify: Restart node exporter
+  when: ansible_distribution_release == 'bullseye' and ansible_virtualization_role == 'guest' and ansible_virtualization_type == 'lxc'
+
+- name: Create directory for custom data export
+  become: true
+  file:
+    state: directory
+    path: "/var/lib/prometheus/node-exporter"
+    owner: root
+    group: root
+    mode: '0755'
+  when: ansible_distribution_release == 'bullseye'
+
+- name: Create directory for Override smartmon environment to C
+  become: true
+  file:
+    state: directory
+    path: "/etc/systemd/system/prometheus-node-exporter-smartmon.service.d"
+    owner: root
+    group: root
+    mode: '0700'
+  when: ansible_distribution_release == 'bullseye' and ansible_virtualization_role == 'host'
+
+- name: Override smartmon environment to C
+  become: true
+  template:
+    src: exporter-node-smartmon.override.j2
+    dest: "/etc/systemd/system/prometheus-node-exporter-smartmon.service.d/override.conf"
+    owner: root
+    group: root
+    mode: '0600'
+  notify: Reload prometheus-node-exporter-smartmon
+  when: ansible_distribution_release == 'bullseye' and ansible_virtualization_role == 'host'
+
+# TODO: add node exporter unit and dir into deb package

@@ -6,6 +6,14 @@
     daemon_reload: true
     enabled: true
 
+- name: Restart node exporter
+  become: true
+  systemd:
+    state: restarted
+    name: prometheus-node-exporter
+    daemon_reload: true
+    enabled: true
+
 - name: Reload systemd
   become: true
   systemd:
@@ -15,3 +23,11 @@
   become: true
   command: systemctl reset-failed node-exporter
   ignore_errors: true
+
+- name: Reload prometheus-node-exporter-smartmon
+  become: true
+  systemd:
+    state: reloaded
+    name: prometheus-node-exporter-smartmon.service
+    daemon_reload: true
+    enabled: true

@@ -1,0 +1,14 @@
+[Unit]
+Description=Prometheus exporter for machine metrics
+Documentation=https://github.com/prometheus/node_exporter
+
+[Service]
+Restart=on-failure
+ExecReload=/bin/kill -HUP $MAINPID
+TimeoutStopSec=20s
+SendSIGKILL=no
+ExecStart=/usr/bin/node_exporter --collector.textfile.directory="/var/lib/prometheus/node-exporter" --collector.systemd --no-collector.thermal_zone --no-collector.hwmon --no-collector.zfs
+
+
+[Install]
+WantedBy=multi-user.target
