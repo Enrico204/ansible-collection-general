@@ -3,6 +3,9 @@ Address = {{ item.vpn_ip }}/{{ item.cidr | default(24) }}
 ListenPort = {{ item.listen_port | default(wireguard_default_port) }}
 PrivateKey = {{ item.privkey }}
 MTU = {{ item.mtu | default(wireguard_default_mtu) }}
+{% if 'metric' in item %}
+Metric = {{ item.metric }}
+{% endif %}
 
 {# For each host in inventory #}
 {% for host in hostvars %}
@@ -11,8 +14,19 @@ MTU = {{ item.mtu | default(wireguard_default_mtu) }}
         {# Cycle inside configs #}
         {% for wg in hostvars[host]["wireguard"] %}
             {% set wg_listen_port = wg["listen_port"] | default(wireguard_default_port) %}
-            {# Check if the name of the config is the same as ours (skip myself) #}
-            {% if wg["name"] == item.name and wg["vpn_ip"] != item.vpn_ip %}
+            {# Print the block for the `host` if:
+            * the name of the config is the same as the current one for the file
+            * the VPN IP is not the same as ours (skip myself)
+            * at least one of these is false (skip peers behind NAT):
+                * "endpoint_host" is present in peer cfg
+                * "endpoint_host" is empty for peer
+                * "endpoint_host" is present in current host cfg
+                * "endpoint_host" is empty for current host
+
+            The goal of the last check is to skip peers that can't be reached directly.
+            This can be used to implement "hub-and-spoke" model, or partial meshes.
+            #}
+            {% if wg["name"] == item.name and wg["vpn_ip"] != item.vpn_ip and not ("endpoint_host" in wg and wg["endpoint_host"] == "" and "endpoint_host" in item and item["endpoint_host"] == "") %}
 
 [Peer] # {{ host }}
 PublicKey = {{ wg["pubkey"] }}

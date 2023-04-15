@@ -10,12 +10,22 @@
   community.network.routeros_command:
     commands:
       - /interface/wireguard/add name={{ wg.name }} {{ wgintfcmd }}
-  register: command_result
 
 - name: 'Update {{ wg.name }} settings'
   community.network.routeros_command:
     commands:
       - /interface/wireguard/set [find name={{ wg.name }}] {{ wgintfcmd }}
+  register: command_result
+  failed_when: >-
+    "failure:" in command_result.stdout[0]
+    or (command_result.stdout | length > 1 and "syntax error" in command_result.stdout[1])
+    or "expected end of" in command_result.stdout[0]
+
+# Routes are added when looping for each peer (from AllowedIPs), and deleted at the end
+- name: 'Interface {{ wg.name }}: Mark all IPv4 routes for deletion'
+  community.network.routeros_command:
+    commands:
+      - /ip/route/set [find gateway={{ wg.name }} dynamic=no] comment="ANSIBLE WORK-IN-PROGRESS"
   register: command_result
   failed_when: >-
     "failure:" in command_result.stdout[0]
@@ -44,6 +54,53 @@
   community.network.routeros_command:
     commands:
       - /interface/wireguard/peers/remove [find interface={{ wg.name }} comment="ANSIBLE WORK-IN-PROGRESS"]
+  register: command_result
+  failed_when: >-
+    "failure:" in command_result.stdout[0]
+    or (command_result.stdout | length > 1 and "syntax error" in command_result.stdout[1])
+    or "expected end of" in command_result.stdout[0]
+
+# Set IPv4
+- name: 'Interface {{ wg.name }}: Mark IPv4 for deletion'
+  community.network.routeros_command:
+    commands:
+      - /ip/address/set [find interface={{ wg.name }}] comment="ANSIBLE WORK-IN-PROGRESS"
+  register: command_result
+  failed_when: >-
+    "failure:" in command_result.stdout[0]
+    or (command_result.stdout | length > 1 and "syntax error" in command_result.stdout[1])
+    or "expected end of" in command_result.stdout[0]
+
+- name: 'Interface {{ wg.name }}: Add IPv4 address'
+  community.network.routeros_command:
+    commands:
+      - /ip/address/add interface={{ wg.name }} address="{{ wg.vpn_ip }}/{{ wg.cidr }}" comment=""
+
+- name: 'Interface {{ wg.name }}: Update IPv4 address'
+  community.network.routeros_command:
+    commands:
+      - /ip/address/set [find interface={{ wg.name }} address="{{ wg.vpn_ip }}/{{ wg.cidr }}"] comment=""
+  register: command_result
+  failed_when: >-
+    "failure:" in command_result.stdout[0]
+    or (command_result.stdout | length > 1 and "syntax error" in command_result.stdout[1])
+    or "expected end of" in command_result.stdout[0]
+
+- name: 'Interface {{ wg.name }}: Remove old IPv4'
+  community.network.routeros_command:
+    commands:
+      - /ip/address/remove [find interface={{ wg.name }} comment="ANSIBLE WORK-IN-PROGRESS"]
+  register: command_result
+  failed_when: >-
+    "failure:" in command_result.stdout[0]
+    or (command_result.stdout | length > 1 and "syntax error" in command_result.stdout[1])
+    or "expected end of" in command_result.stdout[0]
+
+# Finish route managing
+- name: 'Interface {{ wg.name }}: Remove old IPv4 routes'
+  community.network.routeros_command:
+    commands:
+      - /ip/route/remove [find gateway={{ wg.name }} comment="ANSIBLE WORK-IN-PROGRESS"]
   register: command_result
   failed_when: >-
     "failure:" in command_result.stdout[0]

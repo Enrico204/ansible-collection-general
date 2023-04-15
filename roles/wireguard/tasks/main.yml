@@ -8,7 +8,7 @@
 
     - name: Install Wireguard on Mikrotik
       import_tasks: mikrotik.yml
-      when: ansible_network_os is defined and ansible_network_os == 'community.network.routeros'
+      when: ansible_network_os is defined and ansible_network_os == 'community.network.routeros' and not ansible_check_mode
 
 
 - name: Dump roaming configurations

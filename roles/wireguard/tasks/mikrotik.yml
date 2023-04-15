@@ -1,7 +1,7 @@
 # For each interface
 - name: Loop interfaces
   include_tasks: "mikrotik-wg.yml"
-  loop: "{{ wireguard }}"
+  loop: "{{ wireguard | default([]) }}"
   loop_control:
     loop_var: wg
     label: "Interface"
