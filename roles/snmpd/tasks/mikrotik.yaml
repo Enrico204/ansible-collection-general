@@ -1,12 +1,69 @@
-- name: Update community settings
+- name: Prepare SNMP config
+  set_fact:
+    mtk_snmp_line: "addresses=::/0 authentication-protocol=MD5 disabled=no encryption-protocol=DES name={{ snmpd_community }} read-access=yes security=none write-access=no"
+
+
+###### IF community does not exist, just add it
+- name: Check if community already exists
   community.network.routeros_command:
     commands:
-      - /snmp community set [ find default=yes ] addresses=::/0 authentication-protocol=MD5 disabled=no encryption-protocol=DES name={{ snmpd_community }} read-access=yes security=none write-access=no
+      - :if ([/snmp/community get [find name="{{ snmpd_community }}"] name] = "{{ snmpd_community }}") do={:put "exists"}
+  register: mtk_snmp_community_check
+  failed_when: >-
+    "failure:" in mtk_snmp_community_check.stdout[0]
+    or (mtk_snmp_community_check.stdout | length > 1 and "syntax error" in mtk_snmp_community_check.stdout[1])
+    or "expected end of" in mtk_snmp_community_check.stdout[0]
+  changed_when: false
+
+- name: Add community
+  community.network.routeros_command:
+    commands:
+      - /snmp community add {{ mtk_snmp_line }}
   register: command_result
   failed_when: >-
     "failure:" in command_result.stdout[0]
     or (command_result.stdout | length > 1 and "syntax error" in command_result.stdout[1])
     or "expected end of" in command_result.stdout[0]
+  when: mtk_snmp_community_check.stdout[0] != "exists"
+
+
+###### ELSE IF community exist, but config are not aligned, update them
+- name: Check if the config is already applied
+  community.network.routeros_command:
+    commands:
+      - :if ([/snmp/community get [find {{ mtk_snmp_line }}] name] = "{{ snmpd_community }}") do={:put "exists"}
+  register: mtk_snmp_check
+  failed_when: >-
+    "failure:" in mtk_snmp_check.stdout[0]
+    or (mtk_snmp_check.stdout | length > 1 and "syntax error" in mtk_snmp_check.stdout[1])
+    or "expected end of" in mtk_snmp_check.stdout[0]
+  changed_when: false
+  when: mtk_snmp_community_check.stdout[0] == "exists"
+
+- name: Update community
+  community.network.routeros_command:
+    commands:
+      - /snmp community set [ find default=yes ] {{ mtk_snmp_line }}
+  register: command_result
+  failed_when: >-
+    "failure:" in command_result.stdout[0]
+    or (command_result.stdout | length > 1 and "syntax error" in command_result.stdout[1])
+    or "expected end of" in command_result.stdout[0]
+  when: mtk_snmp_community_check.stdout[0] == "exists" and mtk_snmp_check.stdout[0] != "exists"
+
+
+
+# SNMP general settings
+- name: Check general settings are aligned
+  community.network.routeros_command:
+    commands:
+      - :if ([/snmp get enabled] && [/snmp get contact] = "{{ snmpd_contact }}" && [/snmp get location] = "{{ snmpd_location }}") do={:put "ok"}
+  register: mtk_snmp_cfg
+  failed_when: >-
+    "failure:" in mtk_snmp_cfg.stdout[0]
+    or (mtk_snmp_cfg.stdout | length > 1 and "syntax error" in mtk_snmp_cfg.stdout[1])
+    or "expected end of" in mtk_snmp_cfg.stdout[0]
+  changed_when: false
 
 - name: Update SNMP settings
   community.network.routeros_command:
@@ -17,3 +74,4 @@
     "failure:" in command_result.stdout[0]
     or (command_result.stdout | length > 1 and "syntax error" in command_result.stdout[1])
     or "expected end of" in command_result.stdout[0]
+  when: mtk_snmp_cfg.stdout[0] != "ok"
