@@ -5,6 +5,7 @@
     pkg:
       - unattended-upgrades
       - apt-listchanges
+      - needrestart
     purge: true
   when: not apt_auto_update
 
@@ -15,6 +16,7 @@
     pkg:
       - unattended-upgrades
       - apt-listchanges
+      - needrestart
     purge: true
   when: apt_auto_update
 
@@ -97,3 +99,20 @@
     state: present
     create: true
   when: apt_auto_update and apt_auto_update_reboot_at != "never"
+
+- name: Ensure needrestart is configured to restart daemons automatically
+  become: true
+  copy:
+    content: "$nrconf{restart} = 'a';"
+    dest: /etc/needrestart/conf.d/autorestart.conf
+    mode: 0600
+    owner: root
+    group: root
+  when: apt_auto_update and apt_auto_update_reboot_at != "never"
+
+- name: Ensure needrestart is NOT configured to restart daemons automatically
+  become: true
+  file:
+    path: /etc/needrestart/conf.d/autorestart.conf
+    state: absent
+  when: not apt_auto_update or apt_auto_update_reboot_at == "never"
