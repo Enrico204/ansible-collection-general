@@ -1,23 +1,94 @@
 - name: "Mikrotik: prepare common options"
   set_fact:
-    mtk_log_cmd: "bsd-syslog=yes syslog-time-format=bsd-syslog syslog-facility=daemon syslog-severity=auto"
+    mtk_log_cmd: "target=remote remote={{ rsyslog_udp_host }} remote-port={{ rsyslog_udp_port }} bsd-syslog=yes syslog-time-format=bsd-syslog syslog-facility=daemon syslog-severity=auto"
+
+###### IF log action does not exist, just add it
+- name: Check if log action already exists
+  community.network.routeros_command:
+    commands:
+      - :if ([/system/logging/action get [find name="logcollector"] name] = "logcollector") do={:put "exists"}
+  register: mtk_log_action_check
+  failed_when: >-
+    "failure:" in mtk_log_action_check.stdout[0]
+    or (mtk_log_action_check.stdout | length > 1 and "syntax error" in mtk_log_action_check.stdout[1])
+    or "expected end of" in mtk_log_action_check.stdout[0]
+  changed_when: false
 
 - name: "Mikrotik: Add log setting"
   community.network.routeros_command:
     commands:
-      - /system/logging/action/add name="logcollector" target=remote remote={{ rsyslog_udp_host }} remote-port={{ rsyslog_udp_port }} {{ mtk_log_cmd }}
+      - /system/logging/action/add name="logcollector" {{ mtk_log_cmd }}
   register: command_result
+  when: mtk_log_action_check.stdout[0] != "exists"
 
-- name: "Mikrotik: Update log setting"
+
+
+
+###### ELSE IF log action exist, but config are not aligned, update them
+- name: Check if the log action is already applied
   community.network.routeros_command:
     commands:
-      - /system/logging/action/set [find name="logcollector"] target=remote remote={{ rsyslog_udp_host }} remote-port={{ rsyslog_udp_port }} {{ mtk_log_cmd }}
+      - :if ([/system/logging/action get [find name="logcollector" {{ mtk_log_cmd }}] name] = "logcollector") do={:put "exists"}
+  register: mtk_log_action_correct
+  failed_when: >-
+    "failure:" in mtk_log_action_correct.stdout[0]
+    or (mtk_log_action_correct.stdout | length > 1 and "syntax error" in mtk_log_action_correct.stdout[1])
+    or "expected end of" in mtk_log_action_correct.stdout[0]
+  changed_when: false
+  when: mtk_log_action_check.stdout[0] == "exists"
+
+- name: Update log action
+  community.network.routeros_command:
+    commands:
+      - /system/logging/action set [ find name="logcollector" ] {{ mtk_log_cmd }}
   register: command_result
   failed_when: >-
     "failure:" in command_result.stdout[0]
     or (command_result.stdout | length > 1 and "syntax error" in command_result.stdout[1])
     or "expected end of" in command_result.stdout[0]
+  when: mtk_log_action_check.stdout[0] == "exists" and mtk_log_action_correct.stdout[0] != "exists"
 
-- name: Set log levels
-  include_tasks: "fwdremote_mikrotik_topics.yml"
-  loop: "{{ rsyslog_mikrotik_topics }}"
+
+# Set log topics
+- name: Get list of topics
+  community.network.routeros_command:
+    commands:
+      - "/system/logging export"
+  register: mtk_log_topic_cmd
+  failed_when: >-
+    "failure:" in mtk_log_topic_cmd.stdout[0]
+    or (mtk_log_topic_cmd.stdout | length > 1 and "syntax error" in mtk_log_topic_cmd.stdout[1])
+    or "expected end of" in mtk_log_topic_cmd.stdout[0]
+  changed_when: false
+
+- name: Filter topics
+  set_fact:
+    mtk_current_topics: "{{ mtk_log_topic_cmd.stdout_lines[0] | select('match', '.*action=logcollector.*') | map('regex_replace', '.*topics=([a-zA-Z0-9!_,-]+).*', '\\1') }}"
+
+- name: Filter topics to remove/add
+  set_fact:
+    mtk_topics_to_add: "{{ rsyslog_mikrotik_topics | difference(mtk_current_topics) }}"
+    mtk_topics_to_remove: "{{ mtk_current_topics | difference(rsyslog_mikrotik_topics) }}"
+
+# TODO: mikrotik bug!
+# - name: "Mikrotik: Remove topic"
+#   community.network.routeros_command:
+#     commands:
+#       - /system/logging/remove [find action="logcollector" topics="{{ item }}"]
+#   register: command_result
+#   failed_when: >-
+#     "failure:" in command_result.stdout[0]
+#     or (command_result.stdout | length > 1 and "syntax error" in command_result.stdout[1])
+#     or "expected end of" in command_result.stdout[0]
+#   loop: "{{ mtk_topics_to_remove }}"
+
+- name: "Mikrotik: Add topic"
+  community.network.routeros_command:
+    commands:
+      - /system/logging/add action="logcollector" topics="{{ item }}"
+  register: command_result
+  failed_when: >-
+    "failure:" in command_result.stdout[0]
+    or (command_result.stdout | length > 1 and "syntax error" in command_result.stdout[1])
+    or "expected end of" in command_result.stdout[0]
+  loop: "{{ mtk_topics_to_add }}"
