@@ -73,7 +73,7 @@
         group: root
         mode: 0644
       when: docker_mirror_proxy is defined
-      notify: "Reload docker"
+      notify: "Restart docker"
 
     - name: Remove HTTP proxy for docker images if not specified
       become: true
@@ -81,7 +81,7 @@
         path: /etc/systemd/system/docker.service.d/http-proxy.conf
         state: absent
       when: docker_mirror_proxy is not defined
-      notify: "Reload docker"
+      notify: "Restart docker"
 
     - name: Set HTTP proxy for podman OCI images
       become: true
@@ -112,7 +112,7 @@
         group: root
         mode: 0644
       when: docker_mirror_proxy is defined and docker_mirror_cert is defined
-      notify: ["Refresh CA certificates local store", "Reload docker"]
+      notify: ["Refresh CA certificates local store", "Restart docker"]
 
     - name: Remove docker mirror CA certificate
       become: true
@@ -120,7 +120,7 @@
         path: /usr/local/share/ca-certificates/docker_registry_proxy.crt
         state: absent
       when: docker_mirror_proxy is not defined or docker_mirror_cert is not defined
-      notify: ["Refresh CA certificates local store", "Reload docker"]
+      notify: ["Refresh CA certificates local store", "Restart docker"]
 
     # Add a task for cleaning docker images each night
     - name: "Add docker image cleaner task"
@@ -169,26 +169,43 @@
         src: /etc/docker/daemon.json
       register: loaded_docker_cfg
       changed_when: false
-      when: not docker_manual_log_config and stat_docker_cfg.stat.exists
+      when: stat_docker_cfg.stat.exists
+
+    - name: Parse current configuration
+      set_fact:
+        loaded_docker_cfg: "{{ loaded_docker_cfg.content | b64decode | from_json | default({}) }}"
+      when: stat_docker_cfg.stat.exists
 
     - name: Start from empty configuration
       become: true
       set_fact:
-        loaded_docker_cfg:
-          content: "e30="
+        loaded_docker_cfg: {}
       when: not stat_docker_cfg.stat.exists
 
     - name: Set logging
       set_fact:
-        loaded_docker_cfg: "{{ loaded_docker_cfg.content | b64decode | from_json | default({}) | combine({ 'log-driver': 'local', 'log-opts': {'max-size': '500m'} }) }}"
+        loaded_docker_cfg: "{{ loaded_docker_cfg | combine({ 'log-driver': 'local', 'log-opts': {'max-size': '500m'} }) }}"
       when: not docker_manual_log_config
 
-    - name: Write new docker configuration
+    - name: Write new docker configuration for logging
       become: true
       copy:
         content: "{{ loaded_docker_cfg | to_nice_json }}"
         dest: /etc/docker/daemon.json
       when: not docker_manual_log_config
+      notify: "Restart docker"
+
+    - name: Set live-restore
+      set_fact:
+        loaded_docker_cfg: "{{ loaded_docker_cfg | combine({ 'live-restore': true }) }}"
+      when: docker_live_restore_enabled
+
+    - name: Write new docker configuration for live-restore
+      become: true
+      copy:
+        content: "{{ loaded_docker_cfg | to_nice_json }}"
+        dest: /etc/docker/daemon.json
+      when: docker_live_restore_enabled
       notify: "Reload docker"
 
 # Configure Podman to use ZFS

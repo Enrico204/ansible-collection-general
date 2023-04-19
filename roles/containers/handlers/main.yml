@@ -2,13 +2,17 @@
   become: true
   command: update-ca-certificates
 
-- name: Reload docker
+- name: Restart docker
   become: true
   systemd:
     state: restarted
     daemon_reload: true
     name: docker
     enabled: true
+
+- name: Reload docker
+  become: true
+  command: systemctl reload docker
 
 - name: Update APT
   become: true
