@@ -23,7 +23,7 @@ if [ "${1:-}" == "-cron" ]; then
 fi
 
 {% if borg_agent_server_hostkeys is defined %}
-export BORG_RSH="ssh -o StrictHostKeyChecking=yes -o UserKnownHostsFile=/tmp/backnode.hostkeys"
+export BORG_RSH="ssh -o LogLevel=error -o StrictHostKeyChecking=yes -o UserKnownHostsFile=/tmp/backnode.hostkeys"
 umask 0022
 cat <<EOF > /tmp/backnode.hostkeys
 {% for key in borg_agent_server_hostkeys %}
