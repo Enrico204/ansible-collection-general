@@ -22,7 +22,6 @@
       - openvpn
       - p7zip
       - smartmontools
-      - ntp
       - pass
       - vbindiff
       - sipcalc
@@ -102,11 +101,3 @@
       - dbus-x11
       - xscreensaver
   when: not x11
-
-- name: Remove unattended upgrades
-  become: true
-  apt:
-    state: absent
-    pkg:
-      - unattended-upgrades
-    purge: true

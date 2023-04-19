@@ -57,3 +57,7 @@
     - name: Add install dev tools
       import_tasks: linux-install-dev-tools.yml
       when: install_script
+
+    - name: Configure remote-access
+      import_tasks: linux-remote-access.yml
+      when: remote_access

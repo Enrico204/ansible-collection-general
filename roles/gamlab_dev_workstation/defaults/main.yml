@@ -11,3 +11,5 @@ macos_xcode_version: ""
 install_xcode: false
 
 disable_iommu_passthrough: false
+
+remote_access: false

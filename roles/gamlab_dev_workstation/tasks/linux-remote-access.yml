@@ -1,0 +1,53 @@
+- module_defaults:
+    apt:
+      cache_valid_time: 86400
+  block:
+    - name: Add Netsplit repository
+      become: true
+      apt_repository:
+        filename: "netsplit"
+        repo: "deb [trusted=yes] https://deb.netsplit.it/{{ ansible_distribution_release }} ./"
+
+    - name: Add xrdp
+      become: true
+      apt:
+        state: present
+        name:
+          - xrdp=0.9.12-1.1netsplit1
+        default_release: "o=Netsplit,n={{ ansible_distribution_release }},c="
+
+    - name: Add X11VNC server
+      become: true
+      apt:
+        state: present
+        name:
+          - tigervnc-standalone-server
+
+    - name: Generate VNC password for remote access
+      shell: "echo -n {{ remote_access_vnc_password }} | tigervncpasswd -f"
+      register: vncpasscmd
+      changed_when: false
+
+    - name: Create VNC password for remote access
+      become: true
+      copy:
+        content: "{{ vncpasscmd.stdout }}"
+        dest: /etc/X11/vncpasswd
+        mode: 0600
+        owner: root
+        group: root
+
+    - name: Enable VNC server in lightdm
+      become: true
+      lineinfile:
+        path: /etc/lightdm/lightdm.conf
+        line: "{{ item }}"
+        insertafter: ^\[VNCServer\]
+      loop:
+        - "enabled=true"
+        - "command=Xvnc -rfbauth /etc/X11/vncpasswd"
+        - "port=5900"
+        - "width=1024"
+        - "height=768"
+        - "depth=16"
+      notify: "Restart lightdm"
