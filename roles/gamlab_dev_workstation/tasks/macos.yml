@@ -37,3 +37,10 @@
   become: true
   shell: security authorizationdb write com.apple.trust-settings.admin < /tmp/rights
   changed_when: false
+
+- name: Enable multi-sessions in global preferences
+  become: true
+  command: /usr/bin/defaults write .GlobalPreferences MultipleSessionsEnabled -bool TRUE
+
+- name: Enable multi-sessions for Apple Global Domain
+  command: defaults write "Apple Global Domain" MultipleSessionsEnabled -bool true

@@ -58,6 +58,7 @@
     - { domain: com.apple.SoftwareUpdate, key: AutomaticallyInstallMacOSUpdates }
     - { domain: com.apple.SoftwareUpdate, key: AutomaticCheckEnabled }
     - { domain: com.apple.SoftwareUpdate, key: AutomaticDownload }
+    - { domain: com.apple.SoftwareUpdate, key: ConfigDataInstall }
     - { domain: com.apple.SoftwareUpdate, key: CriticalUpdateInstall }
     - { domain: com.apple.commerce, key: AutoUpdate }
     - { domain: com.apple.commerce, key: AutoUpdateRestartRequired }
@@ -88,6 +89,27 @@
     key: showInputMenu
     type: string
     value: true
+
+- name: Show username/password prompt instead of user list
+  community.general.osx_defaults:
+    domain: /Library/Preferences/com.apple.loginwindow.plist
+    key: SHOWFULLNAME
+    type: bool
+    value: true
+
+- name: Show username/password prompt instead of user list 2
+  community.general.osx_defaults:
+    domain: com.apple.loginwindow
+    key: AllowList
+    type: string
+    value: "*"
+
+- name: Disable save application state on logout
+  community.general.osx_defaults:
+    domain: com.apple.loginwindow
+    key: TALLogoutSavesState
+    type: bool
+    value: false
 
 - name: Executing all handlers
   meta: flush_handlers
