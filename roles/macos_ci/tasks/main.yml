@@ -1,0 +1,120 @@
+- name: Disable animations and transparency
+  become: true
+  community.general.osx_defaults:
+    domain: "{{ item.domain }}"
+    key: "{{ item.key }}"
+    type: "{{ item.type }}"
+    value: "{{ item.value }}"
+  loop:
+    - { domain: NSGlobalDomain, key: NSAutomaticWindowAnimationsEnabled, type: bool, value: false }
+    - { domain: NSGlobalDomain, key: NSWindowResizeTime, type: float, value: 0.001 }
+    - { domain: NSGlobalDomain, key: QLPanelAnimationDuration, type: float, value: 0 }
+    - { domain: com.apple.dock, key: autohide-time-modifier, type: float, value: 0 }
+    - { domain: com.apple.dock, key: launchanim, type: bool, value: false }
+    - { domain: com.apple.universalaccess, key: reduceMotion, type: int, value: 1 }
+    - { domain: com.apple.universalaccess, key: reduceTransparency, type: int, value: 1 }
+    - { domain: com.apple.Accessibility, key: DifferentiateWithoutColor, type: int, value: 1 }
+    - { domain: com.apple.Accessibility, key: ReduceMotionEnabled, type: int, value: 1 }
+
+- name: Disable login window wallpaper
+  become: true
+  community.general.osx_defaults:
+    domain: "/Library/Preferences/com.apple.loginwindow"
+    key: "DesktopPicture"
+    type: string
+    value: ""
+
+- name: Adding login message
+  become: true
+  community.general.osx_defaults:
+    domain: "/Library/Preferences/com.apple.loginwindow"
+    key: "LoginwindowText"
+    type: string
+    value: "{{ macos_login_banner }}"
+
+- name: Disable bluetooth
+  become: true
+  community.general.osx_defaults:
+    domain: "/Library/Preferences/com.apple.Bluetooth"
+    key: "ControllerPowerState"
+    type: int
+    value: 0
+
+- name: Disable resume apps on login
+  community.general.osx_defaults:
+    domain: "com.apple.systempreferences"
+    key: "NSQuitAlwaysKeepsWindows"
+    type: bool
+    value: false
+
+- name: Disable automatic termination of idle apps
+  community.general.osx_defaults:
+    domain: "NSGlobalDomain"
+    key: "NSDisableAutomaticTermination"
+    type: bool
+    value: true
+
+- name: Disable screen locking
+  community.general.osx_defaults:
+    domain: "com.apple.loginwindow"
+    key: "DisableScreenLock"
+    type: bool
+    value: true
+
+- name: Disable auto updates
+  become: true
+  community.general.osx_defaults:
+    domain: "{{ item.domain }}"
+    key: "{{ item.key }}"
+    type: bool
+    value: false
+  loop:
+    - { domain: com.apple.SoftwareUpdate, key: AllowPreReleaseInstallation }
+    - { domain: com.apple.SoftwareUpdate, key: AutomaticallyInstallAppUpdates }
+    - { domain: com.apple.SoftwareUpdate, key: AutomaticallyInstallMacOSUpdates }
+    - { domain: com.apple.SoftwareUpdate, key: AutomaticCheckEnabled }
+    - { domain: com.apple.SoftwareUpdate, key: AutomaticDownload }
+    - { domain: com.apple.SoftwareUpdate, key: ConfigDataInstall }
+    - { domain: com.apple.SoftwareUpdate, key: CriticalUpdateInstall }
+    - { domain: com.apple.commerce, key: AutoUpdate }
+    - { domain: com.apple.commerce, key: AutoUpdateRestartRequired }
+
+
+
+- name: Disable throttling low priority processes
+  become: true
+  command: sysctl debug.lowpri_throttle_enabled=0
+
+- name: Disable Wi-Fi
+  command: networksetup -setairportpower Wi-Fi off
+
+- name: Disable power sleep and others
+  become: true
+  command: "{{ item }}"
+  with_items:
+    - pmset -a sleep 0
+    - systemsetup -setcomputersleep Off
+    - pmset -a standbydelay 0
+    - pmset -a disablesleep 1
+    - defaults -currentHost write com.apple.screensaver idleTime -int 0
+    - pmset -a hibernatemode 0
+
+- name: Automatic restart if computer freezes
+  become: true
+  command: systemsetup -setrestartfreeze on
+
+- name: Disable Spotlight
+  become: true
+  command: mdutil -i off -a
+
+# - name: "Screensaver: ask immediately for password"
+#   command: "{{ item }}"
+#   with_items:
+#     - defaults write com.apple.screensaver askForPassword -int 1
+#     - defaults write com.apple.screensaver askForPasswordDelay -int 0
+
+- name: Reboot
+  become: true
+  reboot:
+    post_reboot_delay: 5
+    connect_timeout: 5
