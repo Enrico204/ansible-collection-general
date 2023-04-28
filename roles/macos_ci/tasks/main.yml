@@ -6,23 +6,26 @@
     type: "{{ item.type }}"
     value: "{{ item.value }}"
   loop:
+    - { domain: NSGlobalDomain, key: NSScrollAnimationEnabled, type: bool, value: false }
+    - { domain: NSGlobalDomain, key: NSUseAnimatedFocusRing, type: bool, value: false }
     - { domain: NSGlobalDomain, key: NSAutomaticWindowAnimationsEnabled, type: bool, value: false }
     - { domain: NSGlobalDomain, key: NSWindowResizeTime, type: float, value: 0.001 }
     - { domain: NSGlobalDomain, key: QLPanelAnimationDuration, type: float, value: 0 }
+
+- name: Disable animations and transparency (user settings)
+  community.general.osx_defaults:
+    domain: "{{ item.domain }}"
+    key: "{{ item.key }}"
+    type: "{{ item.type }}"
+    value: "{{ item.value }}"
+  loop:
     - { domain: com.apple.dock, key: autohide-time-modifier, type: float, value: 0 }
     - { domain: com.apple.dock, key: launchanim, type: bool, value: false }
     - { domain: com.apple.universalaccess, key: reduceMotion, type: int, value: 1 }
     - { domain: com.apple.universalaccess, key: reduceTransparency, type: int, value: 1 }
     - { domain: com.apple.Accessibility, key: DifferentiateWithoutColor, type: int, value: 1 }
     - { domain: com.apple.Accessibility, key: ReduceMotionEnabled, type: int, value: 1 }
-
-- name: Disable login window wallpaper
-  become: true
-  community.general.osx_defaults:
-    domain: "/Library/Preferences/com.apple.loginwindow"
-    key: "DesktopPicture"
-    type: string
-    value: ""
+    - { domain: com.apple.finder, key: DisableAllAnimations, type: bool, value: true }
 
 - name: Adding login message
   become: true
@@ -61,6 +64,13 @@
     type: bool
     value: true
 
+- name: Disable quarantine messages
+  community.general.osx_defaults:
+    domain: "com.apple.LaunchServices"
+    key: "LSQuarantine"
+    type: bool
+    value: false
+
 - name: Disable auto updates
   become: true
   community.general.osx_defaults:
@@ -81,6 +91,18 @@
 
 
 
+- name: Set black wallpaper
+  command: 'sqlite3 "~/Library/Application Support/Dock/desktoppicture.db" "{{ item }}"'
+  loop:
+    - DELETE FROM data
+    - INSERT INTO data VALUES ('/System/Library/Desktop Pictures/Solid Colors'),('/System/Library/Desktop Pictures/Solid Colors/Black.png')
+    - DELETE FROM preferences
+    - INSERT INTO preferences VALUES (10,1,3), (1,2,3), (10,1,4), (1,2,4), (10,1,2), (1,2,2), (10,1,1), (1,2,1)
+
+- name: Disable notification center
+  command: launchctl unload -w /System/Library/LaunchAgents/com.apple.notificationcenterui.plist
+  failed_when: false
+
 - name: Disable throttling low priority processes
   become: true
   command: sysctl debug.lowpri_throttle_enabled=0
@@ -88,7 +110,7 @@
 - name: Disable Wi-Fi
   command: networksetup -setairportpower Wi-Fi off
 
-- name: Disable power sleep and others
+- name: Disable power sleep and others power setings
   become: true
   command: "{{ item }}"
   with_items:
@@ -99,6 +121,28 @@
     - defaults -currentHost write com.apple.screensaver idleTime -int 0
     - pmset -a hibernatemode 0
 
+- name: Check image file size
+  stat:
+    path: /private/var/vm/sleepimage
+  register: imagefilestat
+
+- name: Remove sleep image file
+  become: true
+  file:
+    path: /private/var/vm/sleepimage
+    state: absent
+  when: not imagefilestat.stat.exists or imagefilestat.stat.size > 0
+
+- name: Create empty sleep image file
+  become: true
+  command: touch /private/var/vm/sleepimage
+  when: not imagefilestat.stat.exists or imagefilestat.stat.size > 0
+
+- name: Block all writes in sleep image file
+  become: true
+  command: chflags uchg /private/var/vm/sleepimage
+  when: not imagefilestat.stat.exists or imagefilestat.stat.size > 0
+
 - name: Automatic restart if computer freezes
   become: true
   command: systemsetup -setrestartfreeze on
@@ -106,6 +150,10 @@
 - name: Disable Spotlight
   become: true
   command: mdutil -i off -a
+
+- name: Mute audio on boot
+  become: true
+  command: nvram SystemAudioVolume=" "
 
 # - name: "Screensaver: ask immediately for password"
 #   command: "{{ item }}"
