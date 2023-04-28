@@ -30,6 +30,12 @@
     --ssh-user "{{ runner_instance.ssh_user }}"
     --ssh-password "{{ runner_instance.ssh_pass }}"
     {% endif %}
+    {% if runner_instance.executor == "custom" %}
+    --custom-config-exec "{{ runner_instance.custom.config_exec | default("") }}"
+    --custom-prepare-exec "{{ runner_instance.custom.prepare_exec | default("") }}"
+    --custom-run-exec "{{ runner_instance.custom.run_exec | default("") }}"
+    --custom-cleanup-exec "{{ runner_instance.custom.cleanup_exec | default("") }}"
+    {% endif %}
   vars:
     runner_instance: "{{ runners | selectattr('name', 'in', item) | first }}"
   loop: "{{ configured_runners | difference(localrunners.stdout_lines) }}"
