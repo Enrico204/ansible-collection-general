@@ -1,7 +1,0 @@
-- name: Install Java on Debian
-  import_tasks: debian.yml
-  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
-
-- name: Install Java on macOS
-  import_tasks: macos.yml
-  when: ansible_system == "Darwin" and ansible_distribution == "MacOSX"
