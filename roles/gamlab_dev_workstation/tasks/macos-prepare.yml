@@ -30,21 +30,6 @@
     dest: "/Users/{{ ansible_user }}/Library/Preferences/com.apple.SetupAssistant.plist"
     mode: '0600'
 
-- name: Create .ssh
-  file:
-    path: "/Users/{{ ansible_user }}/.ssh"
-    state: directory
-    mode: '0700'
-
-- name: Ensure SSH keys are set for current user
-  lineinfile:
-    path: "/Users/{{ ansible_user }}/.ssh/authorized_keys"
-    create: true
-    line: "{{ item }}"
-    mode: 0644
-    state: present
-  loop: "{{ ssh_pubkeys }}"
-
 - name: Disable auto updates
   become: true
   community.general.osx_defaults:
@@ -91,13 +76,15 @@
     value: true
 
 - name: Show username/password prompt instead of user list
+  become: true
   community.general.osx_defaults:
-    domain: /Library/Preferences/com.apple.loginwindow.plist
+    domain: /Library/Preferences/com.apple.loginwindow
     key: SHOWFULLNAME
     type: bool
     value: true
 
 - name: Show username/password prompt instead of user list 2
+  become: true
   community.general.osx_defaults:
     domain: com.apple.loginwindow
     key: AllowList
@@ -110,6 +97,21 @@
     key: TALLogoutSavesState
     type: bool
     value: false
+
+- name: Set GMT for UTC time zones in defaults
+  set_fact:
+    time_zone: "GMT"
+  when: time_zone == "UTC"
+
+- name: Get current time zone
+  become: true
+  command: systemsetup -gettimezone
+  register: currenttz
+
+- name: Set time zone
+  become: true
+  command: "systemsetup -settimezone {{ time_zone }}"
+  when: 'currenttz.stdout[0] != "Time Zone: " + time_zone'
 
 - name: Executing all handlers
   meta: flush_handlers

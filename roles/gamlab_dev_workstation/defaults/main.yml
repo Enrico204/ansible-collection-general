@@ -13,3 +13,5 @@ install_xcode: false
 disable_iommu_passthrough: false
 
 remote_access: false
+
+time_zone: "UTC"

@@ -26,21 +26,14 @@
     - coreutils
     - carthage
     - jq
+    - fastlane
+    - cocoapods
 
 # https://stackoverflow.com/questions/60481623/errors-when-installing-cocoapods-with-gem
 - name: Switch to macOS Command line tools
   become: true
   command: xcode-select --switch /Library/Developer/CommandLineTools
   changed_when: false
-
-- name: Installing fastlane and cocoapods
-  become: true
-  command: "{{ item }}"
-  loop:
-    - gem install fastlane -NV --conservative
-    - gem install cocoapods --conservative
-  register: geminstall
-  changed_when: "geminstall.stdout | length > 0"
 
 - name: Enable Rosetta 2
   become: true

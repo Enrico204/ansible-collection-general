@@ -1,0 +1,22 @@
+#!/usr/bin/expect -d
+set timeout 30
+
+spawn /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -license              
+expect {
+    "License.rtf" {
+        send "\r";
+        exp_continue;
+    }
+    "Press 'space' for more, or 'q' to quit" {
+        send "q";
+        exp_continue;
+    }
+    "By typing 'agree' you are agreeing" {
+        send "agree\r"; 
+     }
+    timeout {
+        exit 1; 
+    }
+}
+
+expect "License.rtf";

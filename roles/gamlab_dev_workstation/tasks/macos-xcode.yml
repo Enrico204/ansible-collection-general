@@ -1,22 +1,18 @@
-# Step 1: Check if Xcode installation and version
+# Step 1: Check if Xcode exists
 - name: Check if Xcode already exists
   stat:
     path: "/Applications/Xcode.app"
   register: Xcodeapp
 
+### If xcode is not installed, set the relevant variable
 - name: Xcode is not installed
   set_fact:
     install_xcode: true
   when: not Xcodeapp.stat.exists
 
-- name: Set Xcode for CLI tools
-  become: true
-  command: xcode-select --switch /Applications/Xcode.app
-  changed_when: false
-  when: Xcodeapp.stat.exists
-
+### ELSE, get the current xcode version
 - name: Get current Xcode version
-  shell: /usr/bin/xcodebuild -version | grep Xcode | cut -f 2 -d ' '
+  shell: /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -version | grep Xcode | cut -f 2 -d ' '
   register: xcode_curversion
   when: Xcodeapp.stat.exists
   changed_when: false
@@ -42,13 +38,13 @@
     - "/Users/{{ ansible_user }}/Library/Application\ Support/Xcode/"
   when: install_xcode
 
+# Step 3: Install Xcode if doesn't exists or if it was old
 - name: Installing sha256sum
   homebrew:
     name: coreutils
     state: present
   when: install_xcode
 
-# Step 3: Install Xcode if doesn't exists or if it was old
 - name: Download .xip from local cache
   get_url:
     url: "{{ macos_xcode_url }}"
@@ -56,13 +52,15 @@
     checksum: "sha256:{{ macos_xcode_url }}.sha256sum"
   when: install_xcode
   async: 1000
-  poll: 10
+  poll: 15
 
 - name: Extract Xcode
   command: "xip -x /tmp/Xcode_{{ macos_xcode_version }}.xip"
   args:
     chdir: "/tmp/"
   when: install_xcode
+  async: 3600
+  poll: 15
 
 - name: Move Xcode.app
   command: mv Xcode.app /Applications
@@ -70,19 +68,33 @@
     chdir: "/tmp/"
   when: install_xcode
 
-#    - name: remove quarantine xattr
-#      command: xattr -d com.apple.quarantine Xcode.app
-#      args:
-#        chdir: /Applications
-#      become: yes
-#      ignore_errors: yes
+# Apparently this is not working anymore
+# - name: Accept license (it can last 10-15 minutes)
+#   become: true
+#   command: /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -license accept
+#   when: install_xcode
+#   async: 1000
+#   poll: 10
 
-- name: Accept license (it can last 10-15 minutes)
+- name: Copy expect file for XCode license
   become: true
-  command: /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -license accept
-  when: install_xcode
-  async: 1000
-  poll: 10
+  copy:
+    src: xcode-license.expect
+    dest: /tmp/
+    mode: 0755
+  vars:
+    ansible_python_interpreter: /Library/Developer/CommandLineTools/usr/bin/python3
+
+- name: Run expect for accepting XCode license
+  become: true
+  command: /tmp/xcode-license.expect
+  vars:
+    ansible_python_interpreter: /Library/Developer/CommandLineTools/usr/bin/python3
+
+- name: Set Xcode for CLI tools
+  become: true
+  command: xcode-select --switch /Applications/Xcode.app
+  changed_when: false
 
 - name: Install additional components automatically
   become: true

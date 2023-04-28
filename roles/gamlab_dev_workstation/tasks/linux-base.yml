@@ -101,3 +101,16 @@
       - dbus-x11
       - xscreensaver
   when: not x11
+
+# TODO: timezone when no systemd is available
+- name: Get current timezone
+  become: true
+  command: timedatectl show -p Timezone --value
+  changed_when: false
+  register: timedatecmd
+
+- name: Set timezone
+  become: true
+  command: "timedatectl set-timezone {{ ntp_timezone }}"
+  changed_when: false
+  when: 'time_zone != timedatecmd.stdout'

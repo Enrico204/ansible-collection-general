@@ -1,14 +1,14 @@
 - name: Fix hostname
-  import_tasks: fix-hostname.yml
+  include_tasks: fix-hostname.yml
 
 - name: Debian dev workstation
-  import_tasks: linux.yml
+  include_tasks: linux.yml
   when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
 
 - name: macOS dev workstation
-  import_tasks: macos.yml
+  include_tasks: macos.yml
   when: ansible_system == "Darwin" and ansible_distribution == "MacOSX"
 
 - name: Windows dev workstation
-  import_tasks: windows.yml
+  include_tasks: windows.yml
   when: ansible_system == "Win32NT" and "Microsoft Windows 10" in ansible_distribution
