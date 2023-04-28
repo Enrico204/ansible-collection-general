@@ -110,14 +110,3 @@
       dst: dx
     - src: lib/d8.jar
       dst: lib/dx.jar
-
-# Installing emulator and AVDs
-- name: Installing SDK emulator platform
-  expect:
-    timeout: null
-    command: "{{ android_sdk_basedir }}/cmdline-tools/tools/bin/sdkmanager \"emulator\""
-    responses:
-      'y/N': 'y'
-  environment:
-    ANDROID_SDK_ROOT: "{{ android_sdk_basedir }}/"
-  when: ansible_virtualization_role != 'guest' and vmxavailable is success and android_sdk_allusers

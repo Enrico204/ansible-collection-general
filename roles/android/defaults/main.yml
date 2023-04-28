@@ -1,8 +1,8 @@
-android_sdk_build_tools: 32.0.0
+android_sdk_build_tools: 33.0.0
 # Android SDK version from the website
 android_sdk_cli_version: "7583922"
 android_sdk_cli_sha256: "124f2d5115eee365df6cf3228ffbca6fc3911d16f8025bebd5b1c6e2fcfa7faf"
-android_sdk_packages: ["platforms;android-32"]
+android_sdk_packages: ["platforms;android-33"]
 android_sdk_allusers: true
 android_sdk_basedir: "/opt/android-sdk"
 
