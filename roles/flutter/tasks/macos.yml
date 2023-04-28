@@ -1,30 +1,39 @@
-# # Set brew path for M1 chips
-# - name: Get brew path for M1
-#   set_fact:
-#     brewbin: /opt/homebrew/bin/
-#   when: ansible_architecture == 'arm64'
+- name: Check if we are asked for multiuser in macOS
+  fail:
+    msg: "Not compatible with macOS and multiuser due to a Flutter bug: https://github.com/flutter/flutter/issues/91255"
+  when: flutter_multiuser
 
-# - name: Get brew path for amd64
-#   set_fact:
-#     brewbin: /usr/local/bin/
-#   when: ansible_architecture == 'x86_64'
 
-# # TODO: handle multi-user system
-# - name: Install Flutter
-#   homebrew_cask:
-#     name: flutter
-#     state: present
+# Set brew path for M1 chips
+- name: Get brew path for M1
+  set_fact:
+    brewbin: /opt/homebrew/bin/
+  when: ansible_architecture == 'arm64'
 
-# # TODO: add changed_when
-# - name: Upgrading Flutter
-#   command: "{{ brewbin }}/flutter upgrade"
+- name: Get brew path for amd64
+  set_fact:
+    brewbin: /usr/local/bin/
+  when: ansible_architecture == 'x86_64'
 
-# # TODO: add changed_when
-# - name: Disable Flutter/Dart analytics
-#   command: "{{ item }}"
-#   with_items:
-#       - "{{ brewbin }}/flutter config --no-analytics"
-#       - "{{ brewbin }}/dart --disable-analytics"
+- name: Install Flutter
+  homebrew_cask:
+    name: flutter
+    state: present
 
-- fail:
-    msg: "Not compatible with macOS due to a Flutter bug: https://github.com/flutter/flutter/issues/91255"
+# TODO: add changed_when
+- name: Upgrading Flutter
+  command: "{{ brewbin }}/flutter upgrade"
+
+# TODO: add changed_when
+- name: Disable Flutter/Dart analytics
+  command: "{{ item }}"
+  with_items:
+      - "{{ brewbin }}/flutter config --no-analytics"
+      - "{{ brewbin }}/dart --disable-analytics"
+
+# TODO: add changed_when
+- name: Populate Flutter cache
+  command: "{{ item }}"
+  loop:
+  - "{{ brewbin }}/flutter precache"
+  - "{{ brewbin }}/flutter doctor"
