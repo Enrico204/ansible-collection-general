@@ -1,3 +1,4 @@
+# Install/remove packages
 - name: Ensure unattended upgrades are removed
   become: true
   apt:
@@ -20,6 +21,7 @@
     purge: true
   when: apt_auto_update
 
+# Enable unattended upgrades
 - name: Ensure unattended upgrades are enabled
   become: true
   ansible.builtin.lineinfile:
@@ -40,6 +42,96 @@
     create: true
   when: apt_auto_update
 
+# Configure unattended upgrades repos
+- name: Ensure Debian updates repo is included in unattended upgrades
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/apt/apt.conf.d/50unattended-upgrades
+    regexp: '^/?/? *"origin=Debian,codename=\${distro_codename}-updates";'
+    line: '        "origin=Debian,codename=${distro_codename}-updates";'
+    insertafter: '^Unattended-Upgrade::Origins-Pattern {'
+    state: present
+    create: true
+  when: apt_auto_update and ansible_distribution == 'Debian'
+
+- name: Ensure Debian backports repo is included in unattended upgrades
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/apt/apt.conf.d/50unattended-upgrades
+    regexp: '^/?/? *"o=Debian Backports,a=\${distro_codename}-backports,l=Debian Backports";'
+    line: '        "o=Debian Backports,a=${distro_codename}-backports,l=Debian Backports";'
+    insertafter: '^Unattended-Upgrade::Origins-Pattern {'
+    state: present
+    create: true
+  when: apt_auto_update and ansible_distribution == 'Debian'
+
+- name: Ensure Ubuntu updates repo is included in unattended upgrades
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/apt/apt.conf.d/50unattended-upgrades
+    regexp: '^/?/? *"${distro_id}:${distro_codename}-updates";'
+    line: '        "${distro_id}:${distro_codename}-updates";'
+    insertafter: '^Unattended-Upgrade::Origins-Pattern {'
+    state: present
+    create: true
+  when: apt_auto_update and ansible_distribution == 'Ubuntu'
+
+- name: Ensure Ubuntu backports repo is included in unattended upgrades
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/apt/apt.conf.d/50unattended-upgrades
+    regexp: '^/?/? *"${distro_id}:${distro_codename}-backports";'
+    line: '        "${distro_id}:${distro_codename}-backports";'
+    insertafter: '^Unattended-Upgrade::Origins-Pattern {'
+    state: present
+    create: true
+  when: apt_auto_update and ansible_distribution == 'Ubuntu'
+
+- name: Ensure Netsplit repo is included in unattended upgrades
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/apt/apt.conf.d/50unattended-upgrades
+    regexp: '^/?/? *"o=Netsplit,n=\${distro_codename},c=";'
+    line: '        "o=Netsplit,n=${distro_codename},c=";'
+    insertafter: '^Unattended-Upgrade::Origins-Pattern {'
+    state: present
+    create: true
+  when: apt_auto_update
+
+- name: Ensure Grafana repo is included in unattended upgrades
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/apt/apt.conf.d/50unattended-upgrades
+    regexp: '^/?/? *"site=apt.grafana.com";'
+    line: '        "site=apt.grafana.com";'
+    insertafter: '^Unattended-Upgrade::Origins-Pattern {'
+    state: present
+    create: true
+  when: apt_auto_update
+
+- name: Ensure Postgres repo is included in unattended upgrades
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/apt/apt.conf.d/50unattended-upgrades
+    regexp: '^/?/? *"o=apt.postgresql.org,a=\${distro_codename}-pgdg,n=\${distro_codename}-pgdg,l=PostgreSQL for Debian/Ubuntu repository,c=main";'
+    line: '        "o=apt.postgresql.org,a=${distro_codename}-pgdg,n=${distro_codename}-pgdg,l=PostgreSQL for Debian/Ubuntu repository,c=main";'
+    insertafter: '^Unattended-Upgrade::Origins-Pattern {'
+    state: present
+    create: true
+  when: apt_auto_update
+
+- name: Ensure Docker repo is included in unattended upgrades
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/apt/apt.conf.d/50unattended-upgrades
+    regexp: '^/?/? *"o=Docker,a=\${distro_codename},l=Docker CE,c=stable";'
+    line: '        "o=Docker,a=${distro_codename},l=Docker CE,c=stable";'
+    insertafter: '^Unattended-Upgrade::Origins-Pattern {'
+    state: present
+    create: true
+  when: apt_auto_update
+
+# Configure unattended upgrades general settings
 - name: Ensure unattended upgrades notification e-mail is set
   become: true
   ansible.builtin.lineinfile:
@@ -100,6 +192,7 @@
     create: true
   when: apt_auto_update and apt_auto_update_reboot_at != "never"
 
+# Configure needrestart
 - name: Ensure needrestart is configured to restart daemons automatically
   become: true
   copy:
