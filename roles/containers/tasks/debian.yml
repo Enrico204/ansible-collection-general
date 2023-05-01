@@ -15,15 +15,15 @@
           - runc
 
     # Repo for Docker and Podman/buildah/skopeo
-    - name: Add docker and podman repositories
+    - name: Add repositories
       include_tasks: _apt-repo.yml
       loop:
         - name: docker
           key: https://download.docker.com/linux/debian/gpg
           repo_line: "https://download.docker.com/linux/debian {{ ansible_distribution_release }} stable"
-        - name: libcontainers
-          key: "https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/Debian_{{ ansible_distribution_version }}/Release.key"
-          repo_line: "http://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/Debian_{{ ansible_distribution_version }}/ /"
+        # - name: libcontainers
+        #   key: "https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/Debian_{{ ansible_distribution_version }}/Release.key"
+        #   repo_line: "http://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/Debian_{{ ansible_distribution_version }}/ /"
 
     # Install everything
     - name: Install containers packages
