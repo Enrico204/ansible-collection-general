@@ -195,20 +195,29 @@
       when: not docker_manual_log_config
       notify: "Restart docker"
 
-    - name: Set live-restore
+    - name: Enable live-restore
       set_fact:
         loaded_docker_cfg: "{{ loaded_docker_cfg | combine({ 'live-restore': true }) }}"
       when: docker_live_restore_enabled
+
+    - name: Disable live-restore
+      set_fact:
+        loaded_docker_cfg: "{{ loaded_docker_cfg | combine({ 'live-restore': false }) }}"
+      when: not docker_live_restore_enabled
 
     - name: Write new docker configuration for live-restore
       become: true
       copy:
         content: "{{ loaded_docker_cfg | to_nice_json }}"
         dest: /etc/docker/daemon.json
-      when: docker_live_restore_enabled
       notify: "Reload docker"
 
 # Configure Podman to use ZFS
+    - name: Check if podman storage config exists
+      stat:
+        path: /etc/containers/storage.conf
+      register: podman_storage_cfg
+
     - name: Configure ZFS driver for Podman
       become: true
       lineinfile:
@@ -217,4 +226,4 @@
         line: 'driver = "zfs"'
         insertafter: '^\[storage\]'
         state: present
-      when: '"ZFS" in ansible_cmdline["root"]'
+      when: '"ZFS" in ansible_cmdline["root"] and podman_storage_cfg.stat.exists'
