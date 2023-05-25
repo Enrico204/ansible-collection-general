@@ -103,9 +103,10 @@
     time_zone: "GMT"
   when: time_zone == "UTC"
 
-- name: Get current time zone
+- name: Get current timezone
   become: true
   command: systemsetup -gettimezone
+  changed_when: false
   register: currenttz
 
 - name: Set time zone

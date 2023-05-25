@@ -30,6 +30,15 @@
   become: true
   command: security authorizationdb write com.apple.trust-settings.admin allow
 
+- name: Check if macOS login keychain is present
+  stat:
+    path: "~/Library/Keychains/login.keychain-db"
+  register: macos_login_keychain
+
+- name: Create login keychain
+  command: security create-keychain -p {{ ansible_password }} ~/Library/Keychains/login.keychain-db
+  when: not macos_login_keychain.stat.exists
+
 - name: Add trusted WWDRCA G3
   command: security add-trusted-cert -d -r unspecified -k ~/Library/Keychains/login.keychain-db /tmp/AppleWWDRCAG3.cer
 
