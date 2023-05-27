@@ -161,6 +161,10 @@
 #     - defaults write com.apple.screensaver askForPassword -int 1
 #     - defaults write com.apple.screensaver askForPasswordDelay -int 0
 
+- name: opencore
+  include_tasks: opencore.yaml
+  when: macos_is_opencore
+
 - name: Reboot
   become: true
   reboot:

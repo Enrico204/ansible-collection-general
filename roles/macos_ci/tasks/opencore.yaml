@@ -1,0 +1,17 @@
+- name: Mount EFI config partition
+  become: true
+  command: "diskutil mount {{ opencore_efi_disk }}"
+  changed_when: false
+
+- name: "Set timeout to {{ opencore_timeout }} seconds"
+  replace:
+    path: /Volumes/EFI/EFI/OC/config.plist
+    regexp: '<key>Timeout</key>\s*?<integer>[0-9]*</integer>'
+    replace: |-
+                        <key>Timeout</key>
+                        <integer>{{ opencore_timeout }}</integer>
+
+- name: Umount EFI config partition
+  become: true
+  command: "diskutil umount {{ opencore_efi_disk }}"
+  changed_when: false

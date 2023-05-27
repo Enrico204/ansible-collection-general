@@ -1,1 +1,5 @@
 macos_login_banner: CI/CD build machine - DO NOT USE
+
+macos_is_opencore: false
+opencore_timeout: 2
+opencore_efi_disk: "/dev/disk0s1"
