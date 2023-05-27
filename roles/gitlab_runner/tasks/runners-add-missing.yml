@@ -3,6 +3,7 @@
     awk '$1=="[[runners]]" { RUNNER="" }; $1=="name" && RUNNER=="" { RUNNER=$3; print $3 };' {{ gitlab_runner_cfgpath }} | tr -d '"'
   register: localrunners
   changed_when: false
+  check_mode: false
 
 - name: Prepare list of configured runners
   set_fact:
@@ -31,6 +32,8 @@
     --ssh-password "{{ runner_instance.ssh_pass }}"
     {% endif %}
     {% if runner_instance.executor == "custom" %}
+    --builds-dir "{{ runner_instance.custom.builds_dir }}"
+    --cache-dir "{{ runner_instance.custom.cache_dir }}"
     --custom-config-exec "{{ runner_instance.custom.config_exec | default("") }}"
     --custom-prepare-exec "{{ runner_instance.custom.prepare_exec | default("") }}"
     --custom-run-exec "{{ runner_instance.custom.run_exec | default("") }}"

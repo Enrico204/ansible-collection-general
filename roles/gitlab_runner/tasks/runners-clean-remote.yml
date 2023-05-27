@@ -7,6 +7,7 @@
   register: allrunners
   delegate_to: 127.0.0.1
   run_once: true
+  check_mode: false
 
 - name: Prepare lists of configured and remote runners
   set_fact:
