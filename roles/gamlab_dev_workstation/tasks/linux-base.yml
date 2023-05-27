@@ -108,9 +108,10 @@
   command: timedatectl show -p Timezone --value
   changed_when: false
   register: timedatecmd
+  when: 'time_zone != ""'
 
 - name: Set timezone
   become: true
-  command: "timedatectl set-timezone {{ ntp_timezone }}"
+  command: "timedatectl set-timezone {{ time_zone }}"
   changed_when: false
-  when: 'time_zone != timedatecmd.stdout'
+  when: 'time_zone != "" and time_zone != timedatecmd.stdout'
