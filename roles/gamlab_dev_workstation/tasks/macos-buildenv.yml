@@ -39,3 +39,8 @@
   become: true
   command: softwareupdate --install-rosetta --agree-to-license
   when: ansible_architecture == 'arm64'
+
+- name: Set Xcode for CLI tools
+  become: true
+  command: xcode-select --switch /Applications/Xcode.app
+  changed_when: false
