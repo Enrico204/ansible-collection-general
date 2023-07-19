@@ -20,6 +20,10 @@ fw_whitelists: []
 rkhunter_enabled: false
 
 
+# Secure machine
+disable_core_dumps: false
+secure_cron: false
+
 molly_guard: true
 banner_show_ssh: false
 banner_text: |
