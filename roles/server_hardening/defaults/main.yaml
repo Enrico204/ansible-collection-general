@@ -1,6 +1,8 @@
+# Secure SSH
 ssh_hardening: true
 ssh_root_key_access: true
 
+# Firewall
 fw_safe_mgmt4: []
 fw_ssh_port: 22
 fw_public_services: []

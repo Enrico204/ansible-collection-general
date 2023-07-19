@@ -1,0 +1,18 @@
+- name: Ensure APT is configured securely
+  become: true
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/10-secure-apt.conf
+    content: |
+      APT::Get::AllowUnauthenticated "false";
+      APT::Install-Suggests "false";
+      APT::Sandbox::Seccomp "1";
+      Acquire::AllowDowngradeToInsecureRepositories "false";
+      Acquire::AllowInsecureRepositories "false";
+      Acquire::http::AllowRedirect "false";
+
+      APT::Get::AutomaticRemove "true";
+      Unattended-Upgrade::Remove-Unused-Dependencies "true";
+      Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
+    mode: 0640
+    owner: root
+    group: root
