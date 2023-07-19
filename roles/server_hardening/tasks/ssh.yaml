@@ -2,15 +2,53 @@
     apt:
       cache_valid_time: 86400
   block:
-    - name: Secure SSH ciphers
+    - name: Ensure sshd_config permissions are correct
       become: true
-      blockinfile:
+      ansible.builtin.file:
         path: /etc/ssh/sshd_config
-        block: |
-          HostKeyAlgorithms rsa-sha2-512,rsa-sha2-256,ssh-ed25519
-          KexAlgorithms curve25519-sha256@libssh.org,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,diffie-hellman-group14-sha256,curve25519-sha256,diffie-hellman-group-exchange-sha256
-          MACs umac-128-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com
+        owner: root
+        group: root
+        mode: '0600'
+
+    - name: Mask Debian version banner in SSH handshake
+      become: true
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?DebianBanner'
+        line: 'DebianBanner no'
         insertbefore: ^Match
+        firstmatch: true
+      notify: "Restart SSH server"
+      when: ansible_os_family == 'Debian'
+
+    - name: Secure SSH host key algorithms
+      become: true
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?HostKeyAlgorithms'
+        line: 'HostKeyAlgorithms rsa-sha2-512,rsa-sha2-256,ssh-ed25519'
+        insertbefore: ^Match
+        firstmatch: true
+      notify: "Restart SSH server"
+
+    - name: Secure MACs
+      become: true
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?MACs'
+        line: 'MACs umac-128-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com'
+        insertbefore: ^Match
+        firstmatch: true
+      notify: "Restart SSH server"
+
+    - name: Secure key exchange algorithms
+      become: true
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?KexAlgorithms'
+        line: 'KexAlgorithms curve25519-sha256@libssh.org,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,diffie-hellman-group14-sha256,curve25519-sha256,diffie-hellman-group-exchange-sha256'
+        insertbefore: ^Match
+        firstmatch: true
       notify: "Restart SSH server"
 
     - name: Disable root login with password
@@ -20,6 +58,7 @@
         regexp: '^#?PermitRootLogin'
         line: 'PermitRootLogin without-password'
         insertbefore: ^Match
+        firstmatch: true
       notify: "Restart SSH server"
       when: ssh_root_key_access
 
@@ -30,6 +69,7 @@
         regexp: '^#?PermitRootLogin'
         line: 'PermitRootLogin no'
         insertbefore: ^Match
+        firstmatch: true
       notify: "Restart SSH server"
       when: not ssh_root_key_access
 
@@ -40,4 +80,20 @@
         regexp: '^#?PasswordAuthentication'
         line: 'PasswordAuthentication no'
         insertbefore: ^Match
+        firstmatch: true
       notify: "Restart SSH server"
+
+    - name: Disable DNS lookup
+      become: true
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?UseDNS'
+        line: 'UseDNS no'
+        insertbefore: ^Match
+        firstmatch: true
+      notify: "Restart SSH server"
+
+    - name: Check SSH configuration
+      become: true
+      command: sshd -t
+      changed_when: false
