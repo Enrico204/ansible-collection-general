@@ -2,8 +2,16 @@
     apt:
       cache_valid_time: 86400
   block:
-    - name: Install fail2ban
+    - name: Install fail2ban (apt)
       become: true
       apt:
         pkg:
           - fail2ban
+      when: ansible_os_family == 'Debian'
+
+    - name: Install fail2ban (dnf)
+      become: true
+      dnf:
+        pkg:
+          - fail2ban
+      when: ansible_os_family == 'RedHat'
