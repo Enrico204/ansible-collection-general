@@ -1,6 +1,6 @@
 apt_sources: false
 apt_mirror_fallback: true
-apt_proxy_skip_for: []
+apt_proxy_skip_for: ["packagecloud.io", "download.opensuse.org"]
 apt_phased_updates: true
 
 # Debian mirrors
