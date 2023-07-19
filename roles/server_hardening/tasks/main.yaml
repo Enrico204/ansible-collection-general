@@ -18,3 +18,13 @@
 - name: nftables firewall
   include_tasks: nftables.yaml
   when: fw_nftables
+
+- name: APT
+  include_tasks: apt.yaml
+  when: ansible_os_family == 'Debian'
+
+- name: banner
+  include_tasks: banner.yaml
+
+- name: cleanup
+  include_tasks: cleanup.yaml
