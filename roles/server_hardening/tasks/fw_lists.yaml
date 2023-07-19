@@ -2,11 +2,19 @@
     apt:
       cache_valid_time: 86400
   block:
-    - name: Install updater script requirements
+    - name: Install updater script requirements (apt)
       become: true
       apt:
         pkg:
           - wget
+      when: ansible_os_family == 'Debian'
+
+    - name: Install updater script requirements (dnf)
+      become: true
+      dnf:
+        pkg:
+          - wget
+      when: ansible_os_family == 'RedHat'
 
     - name: Fw updater script
       become: true
