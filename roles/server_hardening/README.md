@@ -6,8 +6,6 @@ Harden the server. Tested on Debian/Ubuntu. Each step can be disabled/enabled.
 
 Install OpenSSH server, disable login with password and specify a good default of ciphers.
 
-**Requires** SSH keys to install for current user in `ssh_pubkeys` (array of string) variable.
-
 **Enabled by default**, disable configuring `ssh_hardening` to `false`.
 
 ## Firewall

@@ -23,6 +23,10 @@
   include_tasks: nftables.yaml
   when: fw_nftables
 
+- name: secure cron files
+  include_tasks: cron.yaml
+  when: secure_cron
+
 - name: core dumps
   include_tasks: coredumps.yaml
   when: disable_core_dumps
