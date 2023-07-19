@@ -10,9 +10,11 @@
   block:
     - name: Add Netsplit repository
       become: true
-      apt_repository:
-        filename: "netsplit"
-        repo: "deb [trusted=yes] https://deb.netsplit.it/{{ ansible_distribution_release }} ./"
+      copy:
+        dest: "/etc/apt/sources.list.d/netsplit.list"
+        content: |
+          deb [trusted=yes] https://deb.netsplit.it/{{ ansible_distribution_release }} ./
+          deb [trusted=yes] https://deb.netsplit.it/selfcontained ./
 
     - name: Add node exporter
       become: true
