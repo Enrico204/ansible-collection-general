@@ -1,0 +1,34 @@
+- name: Ensure that the banner is set
+  become: true
+  copy:
+    dest: "{{ item }}"
+    content: "{{ banner_text }}"
+    mode: 0644
+    owner: root
+    group: root
+  loop:
+    - /etc/issue
+    - /etc/issue.net
+
+- name: Ensure that the banner is sent to SSH clients
+  become: true
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?Banner'
+    line: 'Banner /etc/issue.net'
+    insertbefore: ^Match
+    firstmatch: true
+  notify: "Restart SSH server"
+  when: banner_show_ssh
+
+# Remove banner
+- name: Ensure that the banner is NOT sent to SSH clients
+  become: true
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?Banner'
+    line: 'Banner none'
+    insertbefore: ^Match
+    firstmatch: true
+  notify: "Restart SSH server"
+  when: not banner_show_ssh

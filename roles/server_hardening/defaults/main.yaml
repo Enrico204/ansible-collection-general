@@ -17,3 +17,19 @@ fw_nftables: false
 fw_blacklists: []
 fw_whitelists: []
 
+
+banner_show_ssh: false
+banner_text: |
+  #############################################################################
+  # UNAUTHORIZED ACCESS TO THIS DEVICE IS PROHIBITED                          #
+  #                                                                           #
+  # You must have explicit, authorized permission to access or configure this #
+  # device. Unauthorized attempts and actions to access or use this system    #
+  # may result in civil and/or criminal penalties. All activities performed   #
+  # on this device are logged and monitored.                                  #
+  #                                                                           #
+  # PRIVACY DISCLAIMER: Any personal data collected and processed on this     #
+  # device is done in compliance with the General Data Protection Regulation  #
+  # (GDPR). The legal basis for processing this data is the compliance with   #
+  # legal obligation (Article 6, Paragraph 1.c).                              #
+  #############################################################################
