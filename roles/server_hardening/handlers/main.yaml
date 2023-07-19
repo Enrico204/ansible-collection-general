@@ -1,3 +1,11 @@
+- name: Update GRUB
+  become: true
+  command: update-grub2
+
+- name: Reload sysctl
+  become: true
+  command: sysctl -p
+
 - name: Restart SSH server
   become: true
   systemd:
@@ -20,3 +28,40 @@
   become: true
   command: /usr/local/sbin/fw-lists-update
   when: fw_blacklists or fw_whitelists
+
+- name: Reload systemd
+  become: true
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Apply AIDE database
+  become: true
+  command: cp -p /var/lib/aide/aide.db.new /var/lib/aide/aide.db
+
+- name: Restart chronyd
+  become: true
+  systemd:
+    name: chronyd
+    state: restarted
+
+- name: Reload chronyd sources
+  become: true
+  command: chronyc reload sources
+
+- name: Restart systemd-timesyncd
+  become: true
+  systemd:
+    name: systemd-timesyncd
+    state: restarted
+
+- name: Restart rkhunter
+  become: true
+  systemd:
+    name: rkhunter
+    state: restarted
+
+- name: Restart auditd
+  become: true
+  systemd:
+    name: auditd
+    state: restarted
