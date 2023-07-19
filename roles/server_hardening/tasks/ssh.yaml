@@ -56,7 +56,7 @@
       lineinfile:
         path: /etc/ssh/sshd_config
         regexp: '^#?PermitRootLogin'
-        line: 'PermitRootLogin without-password'
+        line: 'PermitRootLogin prohibit-password'
         insertbefore: ^Match
         firstmatch: true
       notify: "Restart SSH server"
