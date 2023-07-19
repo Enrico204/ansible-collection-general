@@ -19,6 +19,10 @@
   include_tasks: nftables.yaml
   when: fw_nftables
 
+- name: core dumps
+  include_tasks: coredumps.yaml
+  when: disable_core_dumps
+
 - name: APT
   include_tasks: apt.yaml
   when: ansible_os_family == 'Debian'

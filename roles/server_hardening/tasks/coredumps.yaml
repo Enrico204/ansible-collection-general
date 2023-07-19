@@ -1,0 +1,46 @@
+- name: Ensure /etc/security/limits.d exists
+  ansible.builtin.file:
+    path: /etc/security/limits.d
+    owner: root
+    group: root
+    mode: "0755"
+    state: directory
+
+- name: Ensure core dump is disabled by default for all users
+  community.general.pam_limits:
+    dest: /etc/security/limits.d/00-disable-coredumps.conf
+    domain: "*"
+    limit_type: hard
+    limit_item: core
+    value: "0"
+
+- name: Ensure core dump file permission is secure
+  ansible.builtin.file:
+    path: /etc/security/limits.d/00-default.conf
+    owner: root
+    group: root
+    mode: "0640"
+    state: touch
+    modification_time: preserve
+    access_time: preserve
+
+- name: Ensure /etc/systemd/coredump.conf.d exists
+  ansible.builtin.file:
+    path: /etc/systemd/coredump.conf.d
+    owner: root
+    group: root
+    mode: 0755
+    state: directory
+  when: ansible_service_mgr == "systemd"
+
+- name: Create custom.conf for disabling coredumps
+  ansible.builtin.copy:
+    content: |
+      [Coredump]
+      Storage=none
+    dest: /etc/systemd/coredump.conf.d/00-disable-coredumps.conf
+    owner: root
+    group: root
+    mode: 0644
+  when: ansible_service_mgr == "systemd"
+  notify: ["Reload systemd"]
