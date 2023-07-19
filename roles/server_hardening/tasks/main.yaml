@@ -26,6 +26,27 @@
 - name: banner
   include_tasks: banner.yaml
 
+- name: Chrony
+  include_tasks: ntp-chrony.yaml
+  when: ntp_client == "chrony" and not (ansible_virtualization_role == 'guest' and (ansible_virtualization_type == 'lxc' or ansible_virtualization_type == 'docker'))
+
+- name: Systemd timesyncd
+  include_tasks: ntp-timesyncd.yaml
+  when: ntp_client == "timesyncd" and not (ansible_virtualization_role == 'guest' and (ansible_virtualization_type == 'lxc' or ansible_virtualization_type == 'docker'))
+
+# TODO: timezone when no systemd is available
+- name: Get current timezone
+  become: true
+  command: timedatectl show -p Timezone --value
+  changed_when: false
+  register: timedatecmd
+  when: 'ntp_timezone != ""'
+
+- name: Set timezone
+  become: true
+  command: "timedatectl set-timezone {{ ntp_timezone }}"
+  changed_when: false
+  when: 'ntp_timezone != "" and ntp_timezone != timedatecmd.stdout'
 
 - name: rkhunter
   include_tasks: rkhunter.yaml

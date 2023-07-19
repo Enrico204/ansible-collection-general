@@ -1,0 +1,38 @@
+- name: Install timesyncd
+  become: true
+  apt:
+    name: systemd-timesyncd
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Install timesyncd
+  become: true
+  dnf:
+    name: systemd-timesyncd
+    state: present
+  when: ansible_os_family == "RedHat"
+
+- name: Ensure other NTP daemons are removed
+  become: true
+  apt:
+    name:
+      - chrony
+    state: absent
+  when: ansible_os_family == "Debian"
+
+- name: Ensure other NTP daemons are removed
+  become: true
+  dnf:
+    name:
+      - chrony
+    state: absent
+  when: ansible_os_family == "RedHat"
+
+- name: Configure NTP servers
+  become: true
+  lineinfile:
+    dest: /etc/systemd/timesyncd.conf
+    regexp: '^#?NTP='
+    line: 'NTP={{ ntp_servers | join(" ") }}'
+    insertafter: '^\[Time\]'
+  notify: "Restart systemd-timesyncd"

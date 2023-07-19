@@ -1,0 +1,86 @@
+# Debian and Debian derivative
+- name: Install chrony
+  become: true
+  apt:
+    name: chrony
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Ensure other NTP daemons are removed
+  become: true
+  apt:
+    name:
+      - ntp
+      - systemd-timesyncd
+    state: absent
+  when: ansible_os_family == "Debian"
+
+- name: Disable default servers
+  become: true
+  lineinfile:
+    dest: /etc/chrony/chrony.conf
+    regexp: '^server(.*)$'
+    line: '# server\1'
+    create: true
+    backrefs: true
+  notify: "Restart chronyd"
+  when: ansible_os_family == "Debian"
+
+- name: Disable default pools
+  become: true
+  lineinfile:
+    dest: /etc/chrony/chrony.conf
+    regexp: '^pool(.*)$'
+    line: '# pool\1'
+    create: true
+    backrefs: true
+  notify: "Restart chronyd"
+  when: ansible_os_family == "Debian"
+
+- name: Configure NTP servers
+  become: true
+  lineinfile:
+    dest: /etc/chrony/sources.d/servers.sources
+    regexp: '^server'
+    line: 'pool {{ item }} iburst'
+    create: true
+  with_items: "{{ ntp_servers }}"
+  notify: "Reload chronyd sources"
+  when: ansible_os_family == "Debian"
+
+# Red Hat and Red Hat derivative
+- name: Install chrony in Red Hat systems
+  become: true
+  dnf:
+    name: chrony
+    state: present
+  when: ansible_os_family == "RedHat"
+
+- name: Remove other NTP daemons in Red Hat systems
+  become: true
+  dnf:
+    name:
+      - systemd-timesyncd
+    state: absent
+  when: ansible_os_family == "RedHat"
+
+- name: Configure NTP servers in Red Hat systems
+  become: true
+  lineinfile:
+    dest: /etc/chrony.conf
+    regexp: '^server'
+    line: 'server {{ item }} iburst'
+  with_items: "{{ ntp_servers }}"
+  notify: "Restart chronyd"
+  when: ansible_os_family == "RedHat"
+
+- name: Disable default pools in Red Hat systems
+  become: true
+  lineinfile:
+    dest: /etc/chrony.conf
+    regexp: '^pool(.*)$'
+    line: '# pool\1'
+    create: true
+    backrefs: true
+  notify: "Restart chronyd"
+  when: ansible_os_family == "RedHat"
