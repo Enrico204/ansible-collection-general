@@ -1,0 +1,15 @@
+- name: Pass SSH_CONNECTION env in sudo env for molly-guard
+  become: true
+  copy:
+    content: |
+      Defaults env_keep += SSH_CONNECTION
+    dest: /etc/sudoers.d/50-molly-guard
+    owner: root
+    group: root
+    mode: '0600'
+
+- name: Install molly-guard
+  become: true
+  apt:
+    name: molly-guard
+    state: present

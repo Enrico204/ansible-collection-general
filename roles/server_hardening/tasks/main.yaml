@@ -7,6 +7,10 @@
   include_tasks: ssh.yaml
   when: ssh_hardening
 
+- name: Add molly-guard
+  include_tasks: molly-guard.yaml
+  when: molly_guard
+
 - name: firewall blacklists/whitelists
   include_tasks: fw_lists.yaml
   when: (fw_blacklists | length) > 0 or (fw_whitelists | length) > 0

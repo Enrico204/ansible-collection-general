@@ -16,8 +16,11 @@ fw_nftables: false
 
 fw_blacklists: []
 fw_whitelists: []
+# rkhunter
+rkhunter_enabled: false
 
 
+molly_guard: true
 banner_show_ssh: false
 banner_text: |
   #############################################################################
@@ -33,3 +36,13 @@ banner_text: |
   # (GDPR). The legal basis for processing this data is the compliance with   #
   # legal obligation (Article 6, Paragraph 1.c).                              #
   #############################################################################
+
+# Time sync
+ntp_client: "timesyncd"
+# if empty, timezone is not altered
+ntp_timezone: ""
+ntp_servers:
+  - 0.pool.ntp.org
+  - 1.pool.ntp.org
+  - 2.pool.ntp.org
+
