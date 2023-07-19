@@ -1,0 +1,35 @@
+- name: Remove unused users
+  become: true
+  user:
+    name: "{{ item }}"
+    state: absent
+  loop: [games, gnats, irc, list, news, sync, uucp, debian]
+
+- name: Set default umask to 077
+  become: true
+  copy:
+    content: |
+      umask 077
+    dest: /etc/profile.d/umask.sh
+    owner: root
+    group: root
+    mode: '0755'
+
+# Disable SUID list from https://gtfobins.github.io/
+- name: "Disable SUID bit: get list of remote executables"
+  shell: "find /usr/bin/ -printf '%M %f\n' | grep -E '^[a-z-]*s[a-z-]*' | cut -f 2 -d ' '"
+  register: remotecmdlist
+  changed_when: false
+
+- name: "Disable SUID bit: filter remote executable list"
+  set_fact:
+    cmdtocheck: "{{ remotecmdlist.stdout_lines | intersect(lookup('file', 'suid.list') | split('\n')) }}"
+  register: remotecmdlist
+
+- name: Disable SUID bit
+  become: true
+  file:
+    path: "/usr/bin/{{ item }}"
+    mode: "a-s"
+    state: file
+  loop: "{{ cmdtocheck }}"
