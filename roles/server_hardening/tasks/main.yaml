@@ -26,6 +26,10 @@
 - name: banner
   include_tasks: banner.yaml
 
+
+- name: rkhunter
+  include_tasks: rkhunter.yaml
+  when: rkhunter_enabled
 - name: Ubuntu-specific
   include_tasks: ubuntu.yaml
   when: ansible_distribution == 'Ubuntu'
