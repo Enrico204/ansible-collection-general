@@ -1,0 +1,8 @@
+- name: Remove apport
+  become: true
+  apt:
+    name: "{{ item }}"
+    state: absent
+  loop:
+    - whoopsie
+    - apport

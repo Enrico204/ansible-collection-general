@@ -26,5 +26,9 @@
 - name: banner
   include_tasks: banner.yaml
 
+- name: Ubuntu-specific
+  include_tasks: ubuntu.yaml
+  when: ansible_distribution == 'Ubuntu'
+
 - name: cleanup
   include_tasks: cleanup.yaml
