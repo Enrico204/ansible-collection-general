@@ -19,6 +19,9 @@ apt_pve_nosubscription: false
 # Install updates automatically
 apt_auto_update: false
 
+# Add external repos to auto update: ["netsplit", "grafana", "postgres", "docker", "gitlab"]
+apt_auto_update_repos: []
+
 # Send notification on errors and updates to this e-mail
 apt_auto_update_email_rcpt: root
 # and warn only when: "always", "only-on-error", or "on-change"
