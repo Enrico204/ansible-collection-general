@@ -44,9 +44,12 @@ importlist() {
 		ipset swap $BLOCKLIST $BLOCKLISTNEW
 		ipset destroy $BLOCKLISTNEW
 	else
+
+		# TODO: enable IPv6
+		
 		echo "flush set inet fw $1" > "$TMPIPSETFILE"
 		set +e
-		cat "$LISTFILE" | grep -v '^0.0.0.0/' | grep -Ev '^#' | sed "s/^/add element inet fw $1 {/" | sed 's/$/}/' >> "$TMPIPSETFILE"
+		cat "$LISTFILE" | grep -v '^0.0.0.0/' | grep -v ":" | grep -Ev '^#' | sed "s/^/add element inet fw $1 {/" | sed 's/$/}/' >> "$TMPIPSETFILE"
 		set -e
 		nft -f "$TMPIPSETFILE"
 	fi
@@ -70,6 +73,8 @@ checkfwrule() {
 }
 
 getlist() {
+	local URL=""
+	local URL6=""
 	case "$1" in
 		fireholL1)
 			URL=https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/firehol_level1.netset
@@ -100,21 +105,27 @@ getlist() {
 			;;
 		ipdenyRU)
 			URL=https://www.ipdeny.com/ipblocks/data/aggregated/ru-aggregated.zone
+			URL6=https://www.ipdeny.com/ipv6/ipaddresses/aggregated/ru-aggregated.zone
 			;;
 		ipdenyCN)
 			URL=https://www.ipdeny.com/ipblocks/data/aggregated/cn-aggregated.zone
+			URL6=https://www.ipdeny.com/ipv6/ipaddresses/aggregated/cn-aggregated.zone
 			;;
 		ipdenyIT)
 			URL=https://www.ipdeny.com/ipblocks/data/aggregated/it-aggregated.zone
+			URL6=https://www.ipdeny.com/ipv6/ipaddresses/aggregated/it-aggregated.zone
 			;;
 		ipdenyDE)
 			URL=https://www.ipdeny.com/ipblocks/data/aggregated/de-aggregated.zone
+			URL6=https://www.ipdeny.com/ipv6/ipaddresses/aggregated/de-aggregated.zone
 			;;
 		ipdenyFR)
 			URL=https://www.ipdeny.com/ipblocks/data/aggregated/fr-aggregated.zone
+			URL6=https://www.ipdeny.com/ipv6/ipaddresses/aggregated/fr-aggregated.zone
 			;;
 		ipdenyCH)
 			URL=https://www.ipdeny.com/ipblocks/data/aggregated/ch-aggregated.zone
+			URL6=https://www.ipdeny.com/ipv6/ipaddresses/aggregated/ch-aggregated.zone
 			;;
 		*)
 			echo "Invalid list"
@@ -122,7 +133,10 @@ getlist() {
 			;;
 	esac
 
-	wget --no-check-certificate --timeout=60 -q "$URL" -O "$2"
+	wget --timeout=60 -q "$URL" -O "$2"
+	if [ "$URL6" != "" ]; then
+		wget --timeout=60 -q "$URL6" -O "$2".v6
+	fi
 }
 
 WORKDIR=$(mktemp -d)

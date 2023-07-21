@@ -176,8 +176,10 @@ COMMIT
 
 {# By default, the whitelist should drop the packet if no match #}
 {% if (fw_whitelist_services | length) > 0 %}
--A WL_ACCEPT -m limit --limit 1/sec --limit-burst 100 -j LOG --log-prefix "iptables[DROP-WL-IN]: "
--A WL_ACCEPT -j DROP
+{# TODO: support IPv6 #}
+-4 -A WL_ACCEPT -m limit --limit 1/sec --limit-burst 100 -j LOG --log-prefix "iptables[DROP-WL-IN]: "
+-4 -A WL_ACCEPT -j DROP
+-6 -A WL_ACCEPT -j ACCEPT
 {% endif %}
 
 COMMIT

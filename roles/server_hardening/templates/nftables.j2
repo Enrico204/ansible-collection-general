@@ -5,6 +5,7 @@ flush ruleset
 table inet fw {
 
 {# Create blacklist sets #}
+{# TODO: support IPv6 #}
 {% for list in fw_blacklists %}
     set {{ list }} {
         type ipv4_addr; flags interval;
@@ -12,6 +13,7 @@ table inet fw {
 {% endfor %}
 
 {# Create whitelist sets #}
+{# TODO: support IPv6 #}
 {% for list in fw_whitelists %}
     set {{ list }} {
         type ipv4_addr; flags interval;
@@ -24,6 +26,7 @@ table inet fw {
 {% for list in fw_blacklists %}
         ip saddr @{{ list }} counter drop
 {% endfor %}
+        {# TODO: support IPv6 #}
     }
 {% endif %}
 
@@ -33,6 +36,8 @@ table inet fw {
 {% for list in fw_whitelists %}
         ip saddr @{{ list }} counter accept
 {% endfor %}
+        {# TODO: support IPv6 #}
+        ip6 version 6 counter accept
         counter drop
     }
 {% endif %}
