@@ -1,3 +1,12 @@
+- name: Create /etc/sudoers.d if it does not exist
+  become: true
+  file:
+    path: /etc/sudoers.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
 - name: Pass SSH_CONNECTION env in sudo env for molly-guard
   become: true
   copy:
