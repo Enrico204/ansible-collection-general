@@ -54,4 +54,4 @@
       loop:
         - v4
         - v6
-      notify: ["Reload iptables rules", "Reload black/white lists"]
+      notify: ["Reload iptables rules", "Reload black/white lists", "Restart fail2ban"]

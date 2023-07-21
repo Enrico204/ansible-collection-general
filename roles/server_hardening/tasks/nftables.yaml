@@ -45,4 +45,4 @@
         mode: 0700
         owner: root
         group: root
-      notify: ["Reload nftables rules", "Reload black/white lists"]
+      notify: ["Reload nftables rules", "Reload black/white lists", "Restart fail2ban"]

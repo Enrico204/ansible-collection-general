@@ -14,13 +14,9 @@ COMMIT
 :INPUT DROP [0:0]
 :FORWARD DROP [0:0]
 :OUTPUT ACCEPT [0:0]
-{% if fw_blacklists %}
 :BL_DROP - [0:0]
-{% endif %}
 :ICMPFLOOD - [0:0]
-{% if (fw_whitelist_services | length) > 0 %}
 :WL_ACCEPT - [0:0]
-{% endif %}
 
 {# Always allow loopback traffic #}
 -A INPUT -i lo -j ACCEPT
@@ -89,9 +85,7 @@ COMMIT
 {% endfor %}
 
 {# Use blacklists to block all IPs immediately #}
-{% if fw_blacklists %}
 -A INPUT -i {{ fw_wan }} -j BL_DROP
-{% endif %}
 
 {# Public services (no restrictions) #}
 {% for svc in fw_public_services %}
@@ -154,9 +148,7 @@ COMMIT
 
 {# No Forward/output rules by default, except blacklists #}
 {# Use blacklists to block all IPs immediately #}
-{% if fw_blacklists %}
 -A FORWARD -i {{ fw_wan }} -j BL_DROP
-{% endif %}
 {# Custom iptables rules #}
 {{ fw_iptables_filter_forward | default("") }}
 
@@ -170,16 +162,18 @@ COMMIT
 -A ICMPFLOOD -j ACCEPT
 
 {# By default, the blacklist should return back to the caller if no match #}
-{% if fw_blacklists %}
 -A BL_DROP -j RETURN
-{% endif %}
 
 {# By default, the whitelist should drop the packet if no match #}
-{% if (fw_whitelist_services | length) > 0 %}
 {# TODO: support IPv6 #}
+{% for net in fw_whitelist_net4 %}
+-4 -A WL_ACCEPT -s {{ net }} -m comment --comment "Whitelist" -j ACCEPT
+{% endfor %}
+{% for net in fw_whitelist_net6 %}
+-6 -A WL_ACCEPT -s {{ net }} -m comment --comment "Whitelist" -j ACCEPT
+{% endfor %}
 -4 -A WL_ACCEPT -m limit --limit 1/sec --limit-burst 100 -j LOG --log-prefix "iptables[DROP-WL-IN]: "
 -4 -A WL_ACCEPT -j DROP
 -6 -A WL_ACCEPT -j ACCEPT
-{% endif %}
 
 COMMIT

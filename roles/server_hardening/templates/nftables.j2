@@ -21,26 +21,28 @@ table inet fw {
 {% endfor %}
 
 {# Create chain for dropping blacklisted IPs #}
-{% if (fw_blacklists | length) > 0 %}
     chain blacklists {
 {% for list in fw_blacklists %}
         ip saddr @{{ list }} counter drop
 {% endfor %}
         {# TODO: support IPv6 #}
     }
-{% endif %}
 
 {# Create chain for accepting whitelisted IPs #}
-{% if (fw_whitelist_services | length) > 0 %}
     chain accept_restricted {
 {% for list in fw_whitelists %}
         ip saddr @{{ list }} counter accept
 {% endfor %}
         {# TODO: support IPv6 #}
+{% for net in fw_whitelist_net4 %}
+        ip saddr {{ net }} counter accept comment "Whitelist"
+{% endfor %}
+{% for net in fw_whitelist_net6 %}
+        ip6 saddr {{ net }} counter accept comment "Whitelist"
+{% endfor %}
         ip6 version 6 counter accept
         counter drop
     }
-{% endif %}
 
     set icmp4flooder {
         type ipv4_addr
@@ -121,9 +123,7 @@ table inet fw {
         {% endfor %}
 
         {# Blacklists #}
-        {% if fw_blacklists -%}
         iifname "{{ fw_wan }}" jump blacklists comment "Drop blacklisted IPs from WAN"
-        {% endif %}
 
         {# Public services -#}
         {% for svc in fw_public_services -%}
@@ -172,9 +172,7 @@ table inet fw {
     chain forward {
         type filter hook forward priority 1; policy drop;
         {# Blacklists #}
-        {% if fw_blacklists -%}
         iifname "{{ fw_wan }}" jump blacklists comment "Drop blacklisted IPs from WAN"
-        {% endif %}
     }
 }
 

@@ -64,3 +64,9 @@
   systemd:
     name: auditd
     state: restarted
+
+- name: Restart fail2ban
+  become: true
+  systemd:
+    name: fail2ban
+    state: restarted

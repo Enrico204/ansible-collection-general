@@ -1,0 +1,47 @@
+- name: Refresh facts on packages
+  become: true
+  package_facts:
+    manager: auto
+
+- name: Secure sudoers file
+  become: true
+  file:
+    path: /etc/sudoers
+    state: file
+    owner: root
+    group: root
+    mode: '0440'
+  when: "'sudo' in ansible_facts.packages"
+
+- name: Create /etc/sudoers.d if it does not exist
+  become: true
+  file:
+    path: /etc/sudoers.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0750'
+  when: "'sudo' in ansible_facts.packages"
+
+- name: Disable sudo timeout
+  become: true
+  copy:
+    content: |
+      Defaults passwd_timeout=0
+    dest: /etc/sudoers.d/30-timeout
+    owner: root
+    group: root
+    mode: '0440'
+  when: "'sudo' in ansible_facts.packages"
+
+- name: Secure sudo
+  become: true
+  copy:
+    content: |
+      # Force different TTY to acquire sudo permissions individually
+      Defaults tty_tickets
+    dest: /etc/sudoers.d/99-secure-sudo
+    owner: root
+    group: root
+    mode: '0440'
+  when: "'sudo' in ansible_facts.packages"

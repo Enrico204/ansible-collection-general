@@ -1,3 +1,6 @@
+- name: sudo
+  include_tasks: sudo.yaml
+
 - name: check fw_iptables and fw_nftables
   fail:
     msg: Can't have both fw_iptables and fw_nftables at the same time
@@ -10,6 +13,9 @@
 - name: Add molly-guard
   include_tasks: molly-guard.yaml
   when: molly_guard
+
+- name: fail2ban
+  include_tasks: fail2ban.yaml
 
 - name: firewall blacklists/whitelists
   include_tasks: fw_lists.yaml

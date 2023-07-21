@@ -8,6 +8,8 @@ fw_safe_mgmt6: []
 fw_ssh_port: 22
 fw_public_services: []
 fw_whitelist_services: []
+fw_whitelist_net4: []
+fw_whitelist_net6: []
 fw_rules: []
 fw_nft_input: ""
 
