@@ -1,0 +1,29 @@
+- name: Install auditd package
+  become: true
+  apt:
+    pkg:
+      - auditd
+      - audispd-plugins
+    state: present
+
+- name: Configure auditd with default rules
+  become: true
+  copy:
+    src: audit.rules
+    dest: /etc/audit/rules.d/audit.rules
+    owner: root
+    group: root
+    mode: 0600
+  when: auditd_rules == ""
+  notify: Restart auditd
+
+- name: Configure auditd with custom rules
+  become: true
+  copy:
+    content: "{{ auditd_rules }}"
+    dest: /etc/audit/rules.d/audit.rules
+    owner: root
+    group: root
+    mode: 0600
+  when: auditd_rules != ""
+  notify: Restart auditd

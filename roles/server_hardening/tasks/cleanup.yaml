@@ -3,7 +3,8 @@
   user:
     name: "{{ item }}"
     state: absent
-  loop: [games, gnats, irc, list, news, sync, uucp, debian]
+  loop: [games, gnats, irc, news, sync, debian]
+  notify: ["Update rkhunter db"]
 
 - name: Set default umask to 077
   become: true
@@ -33,3 +34,4 @@
     mode: "a-s"
     state: file
   loop: "{{ cmdtocheck }}"
+  notify: ["Update rkhunter db"]

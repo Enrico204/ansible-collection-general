@@ -10,7 +10,6 @@
     dest: /etc/default/rkhunter
     regexp: '^CRON_DAILY_RUN='
     line: 'CRON_DAILY_RUN="yes"'
-  notify: "Restart rkhunter"
 
 - name: Configure rkhunter to run daily
   become: true
@@ -18,4 +17,3 @@
     dest: /etc/default/rkhunter
     regexp: '^APT_AUTOGEN='
     line: 'APT_AUTOGEN="yes"'
-  notify: "Restart rkhunter"

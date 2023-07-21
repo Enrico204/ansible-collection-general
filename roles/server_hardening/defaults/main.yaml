@@ -16,6 +16,8 @@ fw_nftables: false
 
 fw_blacklists: []
 fw_whitelists: []
+auditd_enabled: false
+auditd_rules: ""
 # rkhunter
 rkhunter_enabled: false
 

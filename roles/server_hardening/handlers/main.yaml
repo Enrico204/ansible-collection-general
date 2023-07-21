@@ -54,11 +54,10 @@
     name: systemd-timesyncd
     state: restarted
 
-- name: Restart rkhunter
+- name: Update rkhunter db
   become: true
-  systemd:
-    name: rkhunter
-    state: restarted
+  command: rkhunter --propupd
+  when: rkhunter_enabled
 
 - name: Restart auditd
   become: true
