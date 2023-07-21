@@ -63,6 +63,11 @@
 - name: rkhunter
   include_tasks: rkhunter.yaml
   when: rkhunter_enabled
+
+- name: auditd
+  include_tasks: auditd.yaml
+  when: auditd_enabled and not (ansible_virtualization_role == 'guest' and (ansible_virtualization_type == 'lxc' or ansible_virtualization_type == 'docker'))
+
 - name: Ubuntu-specific
   include_tasks: ubuntu.yaml
   when: ansible_distribution == 'Ubuntu'
