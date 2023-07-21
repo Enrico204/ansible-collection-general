@@ -11,6 +11,7 @@
           - arptables
           - ebtables
           - ipset
+          - conntrack
 
     - name: Flush nftables
       become: true

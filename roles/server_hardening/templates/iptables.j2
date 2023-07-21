@@ -1,7 +1,26 @@
+{# NAT table #}
+*nat
+:PREROUTING ACCEPT [0:0]
+:INPUT ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+:POSTROUTING ACCEPT [0:0]
+
+{# Custom iptables rules #}
+{{ fw_iptables_nat | default("") }}
+
+COMMIT
+
 *filter
 :INPUT DROP [0:0]
 :FORWARD DROP [0:0]
 :OUTPUT ACCEPT [0:0]
+{% if fw_blacklists %}
+:BL_DROP - [0:0]
+{% endif %}
+:ICMPFLOOD - [0:0]
+{% if (fw_whitelist_services | length) > 0 %}
+:WL_ACCEPT - [0:0]
+{% endif %}
 
 {# Always allow loopback traffic #}
 -A INPUT -i lo -j ACCEPT
@@ -10,81 +29,92 @@
 -A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
 -A INPUT -m conntrack --ctstate INVALID -j DROP
 
+{# Block TCP traffic with no SYN flag and no conntrack entry #}
+-A INPUT -p tcp ! --syn -m conntrack --ctstate NEW -m comment --comment "Block TCP w/o SYN and conntrack" -j DROP
+
+{# Block old TCP attacks #}
+-A INPUT -p tcp --tcp-flags ALL ALL -m comment --comment "Block TCP XMAS" -j DROP
+-A INPUT -p tcp --tcp-flags ALL NONE -m comment --comment "Block TCP NULL" -j DROP
+-A INPUT -p tcp -m conntrack --ctstate NEW -m tcpmss ! --mss 536:65535 -m comment --comment "Block uncommon MSS" -j DROP
+
 {# Block remote packets claiming to be from a loopback address #}
 -4 -A INPUT -s 127.0.0.0/8  ! -i lo -j DROP
 -6 -A INPUT -s ::1/128      ! -i lo -j DROP
 
-{# Chain for preventing ping flooding - up to 6 pings per second from a single 
-   source, again with log limiting. Also prevents us from ICMP REPLY flooding 
-   some victim when replying to ICMP ECHO from a spoofed source #}
--N ICMPFLOOD
--A ICMPFLOOD -m recent --set --name ICMP --rsource
--A ICMPFLOOD -m recent --update --seconds 1 --hitcount 6 --name ICMP --rsource --rttl -m limit --limit 1/sec --limit-burst 1 -j LOG --log-prefix "iptables[ICMP-flood]: "
--A ICMPFLOOD -m recent --update --seconds 1 --hitcount 6 --name ICMP --rsource --rttl -j DROP
--A ICMPFLOOD -j ACCEPT
-
-{# Permit IMCP echo requests (ping) and use ICMPFLOOD chain for preventing ping 
-   flooding #}
--4 -A INPUT -p icmp      --icmp-type 8     -j ICMPFLOOD
--6 -A INPUT -p ipv6-icmp --icmpv6-type 128 -j ICMPFLOOD
-
-{# Permit useful IMCP packet types for IPv4
+{# Permit useful ICMP and ICMPv6
    Note: RFC 792 states that all hosts MUST respond to ICMP ECHO requests.
    Blocking these can make diagnosing of even simple faults much more tricky.
    Real security lies in locking down and hardening all services, not by hiding #}
--4 -A INPUT -p icmp -m icmp --icmp-type 8 -j ACCEPT
+-4 -A INPUT -p icmp      --icmp-type 0     -m comment --comment "ICMP echo reply" -j ACCEPT
+-4 -A INPUT -p icmp      --icmp-type 3     -m comment --comment "ICMP dest unreachable" -j ACCEPT
+-4 -A INPUT -p icmp      --icmp-type 8     -m comment --comment "ICMP echo request" -j ICMPFLOOD
+-4 -A INPUT -p icmp      --icmp-type 11    -m comment --comment "ICMP time exceeded" -j ACCEPT
+-4 -A INPUT -p icmp      --icmp-type 12    -m comment --comment "ICMP parameter problem" -j ACCEPT
 
 {# Permit needed ICMP packet types for IPv6 per RFC 4890 #}
--6 -A INPUT              -p ipv6-icmp --icmpv6-type 1   -j ACCEPT
--6 -A INPUT              -p ipv6-icmp --icmpv6-type 2   -j ACCEPT
--6 -A INPUT              -p ipv6-icmp --icmpv6-type 3   -j ACCEPT
--6 -A INPUT              -p ipv6-icmp --icmpv6-type 4   -j ACCEPT
--6 -A INPUT              -p ipv6-icmp --icmpv6-type 133 -j ACCEPT
--6 -A INPUT              -p ipv6-icmp --icmpv6-type 134 -j ACCEPT
--6 -A INPUT              -p ipv6-icmp --icmpv6-type 135 -j ACCEPT
--6 -A INPUT              -p ipv6-icmp --icmpv6-type 136 -j ACCEPT
--6 -A INPUT              -p ipv6-icmp --icmpv6-type 137 -j ACCEPT
--6 -A INPUT              -p ipv6-icmp --icmpv6-type 141 -j ACCEPT
--6 -A INPUT              -p ipv6-icmp --icmpv6-type 142 -j ACCEPT
--6 -A INPUT -s fe80::/10 -p ipv6-icmp --icmpv6-type 130 -j ACCEPT
--6 -A INPUT -s fe80::/10 -p ipv6-icmp --icmpv6-type 131 -j ACCEPT
--6 -A INPUT -s fe80::/10 -p ipv6-icmp --icmpv6-type 132 -j ACCEPT
--6 -A INPUT -s fe80::/10 -p ipv6-icmp --icmpv6-type 143 -j ACCEPT
--6 -A INPUT              -p ipv6-icmp --icmpv6-type 148 -j ACCEPT
--6 -A INPUT              -p ipv6-icmp --icmpv6-type 149 -j ACCEPT
--6 -A INPUT -s fe80::/10 -p ipv6-icmp --icmpv6-type 151 -j ACCEPT
--6 -A INPUT -s fe80::/10 -p ipv6-icmp --icmpv6-type 152 -j ACCEPT
--6 -A INPUT -s fe80::/10 -p ipv6-icmp --icmpv6-type 153 -j ACCEPT
+{# From all hosts #}
+-6 -A INPUT              -p ipv6-icmp --icmpv6-type 1   -m comment --comment "ICMPv6 dest unreachable"  -j ACCEPT
+-6 -A INPUT              -p ipv6-icmp --icmpv6-type 2   -m comment --comment "ICMPv6 packet too big"    -j ACCEPT
+-6 -A INPUT              -p ipv6-icmp --icmpv6-type 3   -m comment --comment "ICMPv6 time exceeded"     -j ACCEPT
+-6 -A INPUT              -p ipv6-icmp --icmpv6-type 4   -m comment --comment "ICMPv6 parameter problem" -j ACCEPT
+-6 -A INPUT              -p ipv6-icmp --icmpv6-type 128 -m comment --comment "ICMPv6 echo request"      -j ICMPFLOOD
+-6 -A INPUT              -p ipv6-icmp --icmpv6-type 129 -m comment --comment "ICMPv6 echo reply"        -j ACCEPT
+{# From local/multicast #}
+-6 -A INPUT -s fe80::/64 -p ipv6-icmp --icmpv6-type 130 -m hl --hl-eq 255 -m comment --comment "ICMPv6 MLD listener query"  -j ACCEPT
+-6 -A INPUT -s fe80::/64 -p ipv6-icmp --icmpv6-type 131 -m hl --hl-eq 255 -m comment --comment "ICMPv6 MLD listener report" -j ACCEPT
+-6 -A INPUT -s fe80::/64 -p ipv6-icmp --icmpv6-type 132 -m hl --hl-eq 255 -m comment --comment "ICMPv6 MLD listener done"   -j ACCEPT
+-6 -A INPUT              -p ipv6-icmp --icmpv6-type 133 -m hl --hl-eq 255 -m comment --comment "ICMPv6 router solicitation"       -j ACCEPT
+-6 -A INPUT -s fe80::/64 -p ipv6-icmp --icmpv6-type 134 -m hl --hl-eq 255 -m comment --comment "ICMPv6 router advertisement"      -j ACCEPT
+-6 -A INPUT              -p ipv6-icmp --icmpv6-type 135 -m hl --hl-eq 255 -m comment --comment "ICMPv6 neighbor solicitation"     -j ACCEPT
+-6 -A INPUT              -p ipv6-icmp --icmpv6-type 136 -m hl --hl-eq 255 -m comment --comment "ICMPv6 neighbor advertisement"    -j ACCEPT
+{# -6 -A INPUT -s fe80::/64 -p ipv6-icmp --icmpv6-type 137 -m hl --hl-eq 255 -m comment --comment "ICMPv6 redirect" -j ACCEPT #}
+-6 -A INPUT -d ff02::1   -p ipv6-icmp --icmpv6-type 141 -m hl --hl-eq 255 -m comment --comment "ICMPv6 inverse ND solicitation"  -j ACCEPT
+-6 -A INPUT              -p ipv6-icmp --icmpv6-type 142 -m hl --hl-eq 255 -m comment --comment "ICMPv6 inverse ND advertisement" -j ACCEPT
+-6 -A INPUT -s fe80::/64 -p ipv6-icmp --icmpv6-type 143 -m hl --hl-eq 255 -m comment --comment "ICMPv6 MLDv2"                    -j ACCEPT
+-6 -A INPUT              -p ipv6-icmp --icmpv6-type 148 -m hl --hl-eq 255 -m comment --comment "ICMPv6 SEND solicitation"        -j ACCEPT
+-6 -A INPUT              -p ipv6-icmp --icmpv6-type 149 -m hl --hl-eq 255 -m comment --comment "ICMPv6 SEND advertisement"       -j ACCEPT
+{# From local/multicast for multicast routing (no HL 255 required) #}
+-6 -A INPUT -s fe80::/64 -d ff02::6a -p ipv6-icmp --icmpv6-type 151 -m comment --comment "Multicast Router advertisement" -j ACCEPT
+-6 -A INPUT -s fe80::/64 -d ff02::6a -p ipv6-icmp --icmpv6-type 152 -m comment --comment "Multicast Router solicitation"  -j ACCEPT
+-6 -A INPUT -s fe80::/64 -d ff02::6a -p ipv6-icmp --icmpv6-type 153 -m comment --comment "Multicast Router termination"   -j ACCEPT
 
 {# SSH from safe management addresses before everything else, to avoid firewall lockouts #}
+-4 -A INPUT -s 169.254.0.0/16 -p tcp --dport {{ fw_ssh_port }} --tcp-flags FIN,SYN,RST,ACK SYN -m comment --comment "SSH safe management" -j ACCEPT
+-6 -A INPUT -s fe80::/64      -p tcp --dport {{ fw_ssh_port }} --tcp-flags FIN,SYN,RST,ACK SYN -m comment --comment "SSH safe management" -j ACCEPT
 {% for addr in fw_safe_mgmt4 %}
--4 -A INPUT -s {{ addr }} -p tcp -m tcp --dport 22 -m comment --comment "SSH safe management" -j ACCEPT
--4 -A INPUT -s {{ addr }} -p tcp -m tcp --dport {{ fw_ssh_port }} -m comment --comment "SSH safe management" -j ACCEPT
+-4 -A INPUT -s {{ addr }} -p tcp --dport {{ fw_ssh_port }} --tcp-flags FIN,SYN,RST,ACK SYN -m comment --comment "SSH safe management" -j ACCEPT
+{% endfor %}
+{% for addr in fw_safe_mgmt6 %}
+-6 -A INPUT -s {{ addr }} -p tcp --dport {{ fw_ssh_port }} --tcp-flags FIN,SYN,RST,ACK SYN -m comment --comment "SSH safe management" -j ACCEPT
 {% endfor %}
 
+{# Use blacklists to block all IPs immediately #}
 {% if fw_blacklists %}
--N BL_DROP
 -A INPUT -i {{ fw_wan }} -j BL_DROP
 {% endif %}
 
-{% if (fw_whitelist_services | length) > 0 %}
--N WL_ACCEPT
-{% endif %}
-
-{# Public services #}
+{# Public services (no restrictions) #}
 {% for svc in fw_public_services %}
+{% if svc.proto == 'tcp' %}
+-A INPUT -p tcp --dport {{ svc.port }} --tcp-flags FIN,SYN,RST,ACK SYN -m comment --comment "{{ svc.name | default("") }}" -j ACCEPT
+{% else %}
 -A INPUT -p {{ svc.proto }} --dport {{ svc.port }} -m comment --comment "{{ svc.name | default("") }}" -j ACCEPT
+{% endif %}
 {% endfor %}
 
 {# "Protected" services - accessible only behind whitelist #}
 {% for svc in fw_whitelist_services %}
+{% if svc.proto == 'tcp' %}
+-A INPUT -p tcp --dport {{ svc.port }} --tcp-flags FIN,SYN,RST,ACK SYN -m comment --comment "{{ svc.name | default("") }}" -j WL_ACCEPT
+{% else %}
 -A INPUT -p {{ svc.proto }} --dport {{ svc.port }} -m comment --comment "{{ svc.name | default("") }}" -j WL_ACCEPT
+{% endif %}
 {% endfor %}
 
 {# Other rules #}
 {% for svc in fw_rules %}
 {% if (svc.action | default('')) == 'accept-if-whitelisted' %}
-   {%- set action = 'ACCEPT_RESTRICTED' %}
+   {%- set action = 'WL_ACCEPT' %}
 {% elif (svc.action | default('')) == 'reject' %}
    {%- set action = 'REJECT' %}
 {% elif (svc.action | default('')) == 'drop' %}
@@ -94,35 +124,60 @@
 {% endif -%}
 -A INPUT -p {{ svc.proto }}
 {%- if 'in_interface' in svc %} -i {{ svc.in_interface }}{% endif %}
+{%- if (action == 'ACCEPT' or action == 'WL_ACCEPT') and svc.proto == 'tcp' %} --tcp-flags FIN,SYN,RST,ACK SYN{% endif %}
  --dport {{ svc.port }} -m comment --comment "{{ svc.name | default("") }}"  -j {{ action }}
 {% endfor %}
 
 {# Custom iptables rules #}
-{{ fw_iptables_filter | default("") }}
+{{ fw_iptables_filter_input | default("") }}
+
+{# Good practise is to explicately reject AUTH traffic so that it fails fast #}
+-A INPUT -p tcp --dport 113 -m comment --comment "Reject AUTH" -j REJECT --reject-with tcp-reset
+
+{# Do not log late replies from nameservers #}
+-A INPUT -p udp -m udp --sport 53 -j DROP
+
+{# Do not log garbage broadcast packets #}
+-A INPUT -p udp -m multiport --dports 135,445     -m comment --comment "Drop SMB" -j DROP
+-A INPUT -p udp              --dport  137:139     -m comment --comment "Drop SMB" -j DROP
+-A INPUT -p udp --sport 137                       -m comment --comment "Drop SMB" -j DROP
+-A INPUT -p tcp -m multiport --dports 135,139,445 -m comment --comment "Drop SMB" -j DROP
+-A INPUT -p udp              --dport  1900        -m comment --comment "Drop UPnP" -j DROP
 
 {# Drop all packets that are going to broadcast, multicast or anycast address #}
 -4 -A INPUT -m addrtype --dst-type BROADCAST -m comment --comment "Drop broadcast" -j DROP
 -4 -A INPUT -m addrtype --dst-type MULTICAST -m comment --comment "Drop multicast" -j DROP
 -4 -A INPUT -d 224.0.0.0/4                   -m comment --comment "Drop multicast" -j DROP
 
-{# Do not log garbage broadcast packets #}
-{# TODO: in theory these packets will be blocked by rules above #}
--A INPUT -p udp -m multiport --dports 135,445     -m comment --comment "Drop SMB" -j DROP
--A INPUT -p udp              --dport  137:139     -m comment --comment "Drop SMB" -j DROP
--A INPUT -p udp --sport 137  --dport 1024:65535   -m comment --comment "Drop SMB" -j DROP
--A INPUT -p tcp -m multiport --dports 135,139,445 -m comment --comment "Drop SMB" -j DROP
--A INPUT -p udp              --dport 1900         -m comment --comment "Drop UPnP" -j DROP
+{# Prevent DOS by filling log files #}
+-A INPUT -m limit --limit 1/sec --limit-burst 100 -j LOG --log-level debug --log-prefix "iptables[DROP-IN]: "
 
-{# No Forward/output rules by default #}
-COMMIT
-
-{# NAT table #}
-*nat
-:PREROUTING ACCEPT [0:0]
-:POSTROUTING ACCEPT [0:0]
-:OUTPUT ACCEPT [0:0]
-
+{# No Forward/output rules by default, except blacklists #}
+{# Use blacklists to block all IPs immediately #}
+{% if fw_blacklists %}
+-A FORWARD -i {{ fw_wan }} -j BL_DROP
+{% endif %}
 {# Custom iptables rules #}
-{{ fw_iptables_nat | default("") }}
+{{ fw_iptables_filter_forward | default("") }}
+
+
+{# Chain for preventing ping flooding - up to 6 pings per second from a single 
+   source, again with log limiting. Also prevents us from ICMP REPLY flooding 
+   some victim when replying to ICMP ECHO from a spoofed source #}
+-A ICMPFLOOD -m recent --set --name ICMP --rsource
+-A ICMPFLOOD -m recent --update --seconds 1 --hitcount 6 --name ICMP --rsource --rttl -m limit --limit 1/sec --limit-burst 1 -j LOG --log-prefix "iptables[ICMP-flood]: "
+-A ICMPFLOOD -m recent --update --seconds 1 --hitcount 6 --name ICMP --rsource --rttl -j DROP
+-A ICMPFLOOD -j ACCEPT
+
+{# By default, the blacklist should return back to the caller if no match #}
+{% if fw_blacklists %}
+-A BL_DROP -j RETURN
+{% endif %}
+
+{# By default, the whitelist should drop the packet if no match #}
+{% if (fw_whitelist_services | length) > 0 %}
+-A WL_ACCEPT -m limit --limit 1/sec --limit-burst 100 -j LOG --log-prefix "iptables[DROP-WL-IN]: "
+-A WL_ACCEPT -j DROP
+{% endif %}
 
 COMMIT

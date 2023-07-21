@@ -6,85 +6,131 @@ table inet fw {
 
 {# Create blacklist sets #}
 {% for list in fw_blacklists %}
-        set {{ list }} {
-            type ipv4_addr; flags interval;
-        }
+    set {{ list }} {
+        type ipv4_addr; flags interval;
+    }
 {% endfor %}
 
 {# Create whitelist sets #}
 {% for list in fw_whitelists %}
-        set {{ list }} {
-            type ipv4_addr; flags interval;
-        }
+    set {{ list }} {
+        type ipv4_addr; flags interval;
+    }
 {% endfor %}
 
 {# Create chain for dropping blacklisted IPs #}
 {% if (fw_blacklists | length) > 0 %}
-        chain blacklists {
+    chain blacklists {
 {% for list in fw_blacklists %}
-            ip saddr @{{ list }} counter drop
+        ip saddr @{{ list }} counter drop
 {% endfor %}
-        }
+    }
 {% endif %}
 
 {# Create chain for accepting whitelisted IPs #}
 {% if (fw_whitelist_services | length) > 0 %}
-        chain accept_restricted {
+    chain accept_restricted {
 {% for list in fw_whitelists %}
-            ip saddr @{{ list }} counter accept
+        ip saddr @{{ list }} counter accept
 {% endfor %}
-        }
+        counter drop
+    }
 {% endif %}
 
-        chain ingress {
-            type filter hook input priority 1; policy drop;
-            {# Always allow loopback traffic -#}
-            iif "lo" accept
+    set icmp4flooder {
+        type ipv4_addr
+        flags dynamic
+        timeout 1s
+    }
 
-            {# Connection tracking: allow established traffic without further analysis, drop packets in a INVALID state -#}
-            ct state established,related accept
-            ct state invalid counter drop
+    set icmp6flooder {
+        type ipv6_addr
+        flags dynamic
+        timeout 1s
+    }
 
-            {# Block remote packets claiming to be from a loopback address -#}
-            iif != lo ip  saddr 127.0.0.0/8 counter drop comment "Block martian packets"
-            iif != lo ip6 saddr ::1/128     counter drop comment "Block martian packets"
+    chain icmpflood {
+        ip saddr @icmp4flooder update @icmp4flooder { ip saddr } counter comment "Keep user in the list"
+        ip6 saddr @icmp6flooder update @icmp6flooder { ip6 saddr } counter comment "Keep user in the list"
+        ip version 4 limit rate over 6/second burst 1 packets add @icmp4flooder { ip saddr } counter drop
+        ip6 version 6 limit rate over 6/second burst 1 packets add @icmp6flooder { ip6 saddr } counter drop
+        counter accept
+    }
 
-            {# Chain for preventing ping flooding - up to 6 pings per second from a single 
-            source, again with log limiting. Also prevents us from ICMP REPLY flooding 
-            some victim when replying to ICMP ECHO from a spoofed source #}
-            {# Permit IMCP echo requests (ping) and use ICMPFLOOD chain for preventing ping flooding #}
-            {# TODO #}
+    chain inbound {
+        type filter hook input priority 1; policy drop;
+        {# Always allow loopback traffic -#}
+        iif "lo" accept
 
-            {# Permit useful IMCP packet types for IPv4
-            Note: RFC 792 states that all hosts MUST respond to ICMP ECHO requests.
-            Blocking these can make diagnosing of even simple faults much more tricky.
-            Real security lies in locking down and hardening all services, not by hiding -#}
-            icmp type { echo-request } counter accept
+        {# Connection tracking: allow established traffic without further analysis, drop packets in a INVALID state -#}
+        ct state established,related accept
+        ct state invalid counter drop
 
-            {# Permit needed ICMP packet types for IPv6 per RFC 4890 -#}
-            {# TODO -#}
-            icmpv6 type { echo-request, nd-neighbor-solicit, mld-listener-query, nd-router-solicit } accept
+        {# Block TCP traffic with no SYN flag and no conntrack entry #}
+        tcp flags & (fin|syn|rst|ack) != syn ct state new counter drop comment "Block TCP w/o SYN and conntrack"
 
-            {# SSH from safe management addresses before everything else, to avoid firewall lockouts -#}
-            {% for addr in fw_safe_mgmt4 -%}
-            ip saddr {{ addr }} tcp dport { 22, {{ fw_ssh_port }} } accept comment "SSH safe management"
-            {% endfor %}
+        {# Block old TCP attacks #}
+        tcp flags & (fin|syn|rst|psh|ack|urg) == fin|syn|rst|psh|ack|urg counter drop comment "Block TCP XMAS"
+        tcp flags & (fin|syn|rst|psh|ack|urg) == 0x0 counter drop comment "Block TCP NULL"
+        tcp flags syn tcp option maxseg size 1-535 counter drop comment "Block uncommon MSS"
 
-            {% if fw_blacklists -%}
-            iifname "{{ fw_wan }}" jump blacklists comment "Drop blacklisted IPs"
-            {% endif %}
+        {# Block remote packets claiming to be from a loopback address -#}
+        iif != lo ip  saddr 127.0.0.0/8 counter drop comment "Block martian packets"
+        iif != lo ip6 saddr ::1/128     counter drop comment "Block martian packets"
 
-            {# Public services -#}
-            {% for svc in fw_public_services -%}
-            {{ svc.proto }} dport {{ svc.port }} accept comment "{{ svc.name | default("") }}"
-            {% endfor %}
+        {# Permit useful ICMP and ICMPv6
+        Note: RFC 792 states that all hosts MUST respond to ICMP ECHO requests.
+        Blocking these can make diagnosing of even simple faults much more tricky.
+        Real security lies in locking down and hardening all services, not by hiding #}
+        icmp type { echo-reply, destination-unreachable, time-exceeded, parameter-problem } counter accept comment "Allowed ICMP per RFC 792"
+        icmp type { echo-request } counter jump icmpflood comment "ICMP echo request"
 
-            {# "Protected" services - accessible only behind whitelist -#}
-            {% for svc in fw_whitelist_services -%}
-            {{ svc.proto }} dport {{ svc.port }} jump accept_restricted comment "{{ svc.name | default("") }}"
-            {% endfor %}
 
-            {# Other rules -#}
+        {# Permit needed ICMP packet types for IPv6 per RFC 4890 #}
+        {# From all hosts #}
+        icmpv6 type { destination-unreachable, packet-too-big, time-exceeded, parameter-problem, echo-reply } counter accept comment "Allowed ICMPv6 per RFC 4890"
+        icmpv6 type { echo-request } counter jump icmpflood comment "ICMPv6 echo request"
+        {# From local/multicast #}
+        ip6 saddr fe80::/64 ip6 hoplimit 255 icmpv6 type { mld-listener-query, mld-listener-report, mld-listener-done } counter accept comment "ICMPv6 MLD"
+        ip6 hoplimit 255 icmpv6 type { nd-router-solicit } counter accept comment "ICMPv6 router solicitation"
+        ip6 saddr fe80::/64 ip6 hoplimit 255 icmpv6 type { nd-router-advert } counter accept comment "ICMPv6 router advertisement"
+        ip6 hoplimit 255 icmpv6 type { nd-neighbor-solicit, nd-neighbor-advert } counter accept comment "ICMPv6 NDP"
+        {# ip6 saddr fe80::/64 ip6 hoplimit 255 icmpv6 type { nd-redirect } counter accept comment "ICMPv6 redirect" #}
+        ip6 daddr ff02::1 ip6 hoplimit 255 icmpv6 type { ind-neighbor-solicit } counter accept comment "ICMPv6 inverse NDP solicitation"
+        ip6 hoplimit 255 icmpv6 type { ind-neighbor-advert } counter accept comment "ICMPv6 inverse NDP advertisement"
+        ip6 saddr fe80::/64 ip6 hoplimit 255 icmpv6 type { mld2-listener-report } counter accept comment "ICMPv6 MLDv2"
+        ip6 hoplimit 255 icmpv6 type { 148, 149 } counter accept comment "ICMPv6 SEND solicit/advert"
+        {# From local/multicast for multicast routing (no hoplimit 255 required) #}
+        ip6 saddr fe80::/64 ip6 daddr ff02::6a icmpv6 type { 151, 152, 153 } counter accept comment "ICMPv6 Multicast router"
+        
+        {# TODO rimuovere icmpv6 type { nd-neighbor-solicit, mld-listener-query, nd-router-solicit } accept #}
+
+        {# SSH from safe management addresses before everything else, to avoid firewall lockouts -#}
+        ip saddr 169.254.0.0/16 tcp dport {{ fw_ssh_port }} accept comment "SSH safe management"
+        ip6 saddr fe80::/64 tcp dport {{ fw_ssh_port }} accept comment "SSH safe management"
+        {% for addr in fw_safe_mgmt4 -%}
+        ip saddr {{ addr }} tcp dport {{ fw_ssh_port }} accept comment "SSH safe management"
+        {% endfor %}
+        {% for addr in fw_safe_mgmt6 -%}
+        ip6 saddr {{ addr }} tcp dport {{ fw_ssh_port }} accept comment "SSH safe management"
+        {% endfor %}
+
+        {# Blacklists #}
+        {% if fw_blacklists -%}
+        iifname "{{ fw_wan }}" jump blacklists comment "Drop blacklisted IPs from WAN"
+        {% endif %}
+
+        {# Public services -#}
+        {% for svc in fw_public_services -%}
+        {{ svc.proto }} dport {{ svc.port }} accept comment "{{ svc.name | default("") }}"
+        {% endfor %}
+
+        {# "Protected" services - accessible only behind whitelist -#}
+        {% for svc in fw_whitelist_services -%}
+        {{ svc.proto }} dport {{ svc.port }} jump accept_restricted comment "{{ svc.name | default("") }}"
+        {% endfor %}
+
+        {# Other rules -#}
 {% for svc in fw_rules %}
 {% if (svc.action | default('')) == 'accept-if-whitelisted' %}
     {%- set action = 'jump accept_restricted' %}
@@ -96,29 +142,40 @@ table inet fw {
     {%- set action = 'accept' %}
 {% endif %}
 
-            {% if 'in_interface' in svc %}iifname "{{ svc.in_interface }}" {% endif -%}
-            {{ svc.proto }} dport {{ svc.port }} {{ action }} comment "{{ svc.name | default("") }}"
+        {% if 'in_interface' in svc %}iifname "{{ svc.in_interface }}" {% endif -%}
+        {{ svc.proto }} dport {{ svc.port }} {{ action }} comment "{{ svc.name | default("") }}"
 {% endfor %}
 
-            {# Custom nft rules -#}
-            {{ fw_nft_input | default("") }}
+        {# Custom nft rules -#}
+        {{ fw_nft_input | default("") }}
 
-            {# Drop all packets that are going to broadcast, multicast or anycast address -#}
-            meta pkttype { broadcast, multicast } drop comment "Drop broadcast/multicast/anycast"
-            ip daddr 224.0.0.0/4                  drop comment "Drop multicast"
+        {# Do not log garbage broadcast packets -#}
+        {# TODO: in theory these packets will be blocked by rules above -#}
+        udp dport { 135, 137, 138, 139, 445 } counter drop comment "Drop SMB"
+        udp sport 137                         counter drop comment "Drop SMB"
+        tcp dport { 135, 137, 138, 139, 445 } counter drop comment "Drop SMB"
+        udp dport 1900                        counter drop comment "Drop UPnP"
 
-            {# Do not log garbage broadcast packets -#}
-            {# TODO: in theory these packets will be blocked by rules above -#}
-            udp dport { 135, 137, 138, 139, 445 } drop comment "Drop SMB"
-            udp sport 137                         drop comment "Drop SMB"
-            tcp dport { 135, 137, 138, 139, 445 } drop comment "Drop SMB"
-            udp dport 1900                        drop comment "Drop UPnP"
-        }
+        {# Drop and no log all packets that are going to broadcast, multicast or anycast address -#}
+        meta pkttype { broadcast, multicast } counter drop comment "Drop broadcast/multicast/anycast"
+        ip daddr 224.0.0.0/4                  counter drop comment "Drop multicast"
+
+        {# Prevent DOS by filling log files #}
+        limit rate 1/second burst 100 packets log level debug prefix "nftables[DROP-IN]: " counter
+    }
+
+    chain forward {
+        type filter hook forward priority 1; policy drop;
+        {# Blacklists #}
+        {% if fw_blacklists -%}
+        iifname "{{ fw_wan }}" jump blacklists comment "Drop blacklisted IPs from WAN"
+        {% endif %}
+    }
 }
 
 table ip fw {
-        chain postfwdrouting {
-                type nat hook postrouting priority 100; policy accept;
+    chain postfwdrouting {
+        type nat hook postrouting priority 100; policy accept;
 {{ fw_nft_snat | default("") }}
-        }
+    }
 }

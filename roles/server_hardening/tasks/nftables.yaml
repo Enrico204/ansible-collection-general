@@ -27,6 +27,7 @@
       apt:
         pkg:
           - nftables
+          - conntrack
         state: present
 
     - name: Remove iptables config

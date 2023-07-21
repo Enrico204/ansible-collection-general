@@ -4,11 +4,11 @@ ssh_root_key_access: true
 
 # Firewall
 fw_safe_mgmt4: []
+fw_safe_mgmt6: []
 fw_ssh_port: 22
 fw_public_services: []
 fw_whitelist_services: []
 fw_rules: []
-fw_iptables_filter: ""
 fw_nft_input: ""
 
 fw_iptables: false
