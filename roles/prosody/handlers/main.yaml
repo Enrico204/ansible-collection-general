@@ -1,0 +1,21 @@
+- name: Reload prosody configuration
+  become: true
+  command: prosodyctl reload
+
+- name: Restart coTURN
+  become: true
+  systemd:
+    name: coturn
+    state: restarted
+
+- name: Restart slidge telegram
+  become: true
+  systemd:
+    name: "slidge@telegram"
+    state: restarted
+
+- name: Restart slidge matrix
+  become: true
+  systemd:
+    name: "slidge@matrix"
+    state: restarted

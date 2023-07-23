@@ -1,0 +1,41 @@
+# Add repo using file keyrings
+- name: Get dpkg architecture
+  become: true
+  command: dpkg --print-architecture
+  register: dpkg_arch
+  changed_when: false
+  check_mode: false
+
+- name: Ensure requirements are installed
+  become: true
+  apt:
+    state: present
+    pkg:
+      - ca-certificates
+      - curl
+      - gnupg
+      - apt-transport-https
+      - debian-archive-keyring
+
+- name: Ensure that /etc/apt/keyrings exists
+  become: true
+  file:
+    state: directory
+    path: /etc/apt/keyrings
+    mode: "0755"
+
+- name: Check if {{ item.name }} repo key exists
+  stat:
+    path: "/etc/apt/keyrings/{{ item.name }}.gpg"
+  register: iskeyfile
+
+- name: Add {{ item.name }} key to keyrings
+  become: true
+  shell: "curl -fsSL {{ item.key }} | gpg --batch --yes --dearmor -o /etc/apt/keyrings/{{ item.name }}.gpg"
+  when: not iskeyfile.stat.exists
+
+- name: Add {{ item.name }} repository
+  become: true
+  apt_repository:
+    filename: "{{ item.name }}"
+    repo: "deb [arch={{ dpkg_arch.stdout }} signed-by=/etc/apt/keyrings/{{ item.name }}.gpg] {{ item.repo_line }}"

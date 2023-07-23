@@ -1,0 +1,7 @@
+admins={% for jid in prosody_admins %}{{ jid }} {% endfor %}
+
+upload-service={{ prosody_slidge_upload_service }}
+user-jid-validator={{ prosody_slidge_user_jid_validator }}
+server=localhost
+port=5347
+secret={{ prosody_slidge_secret }}

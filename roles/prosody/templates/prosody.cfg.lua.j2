@@ -1,0 +1,338 @@
+{#
+-- This is a (by default, empty) list of accounts that are admins
+-- for the server. Note that you must create the accounts separately
+-- (see https://prosody.im/doc/creating_accounts for info)
+#}
+admins = {
+{% for jid in prosody_admins %}
+    "{{ jid }}",
+{% endfor %}
+}
+
+{#
+-- This option allows you to specify additional locations where Prosody
+-- will search first for modules. For additional modules you can install, see
+-- the community module repository at https://modules.prosody.im/
+-- For a local administrator it's common to place local modifications
+-- under /usr/local/ hierarchy:
+#}
+plugin_paths = { "/usr/local/lib/prosody/modules" }
+
+{#
+-- This is the list of modules Prosody will load on startup.
+-- Documentation for bundled modules can be found at: https://prosody.im/doc/modules
+#}
+modules_enabled = {
+    "disco"; -- Service discovery
+    "roster"; -- Allow users to have a roster. Recommended ;)
+    "saslauth"; -- Authentication for clients and servers. Recommended if you want to log in.
+    "bookmarks"; -- Synchronise the list of open rooms between clients
+    "carbons"; -- Keep multiple online clients in sync
+    "dialback"; -- Support for verifying remote servers using DNS
+    "limits"; -- Enable bandwidth limiting for XMPP connections
+    "pep"; -- Allow users to store public and private data in their account
+    "private"; -- Legacy account storage mechanism (XEP-0049)
+    "smacks"; -- Stream management and resumption (XEP-0198)
+    "vcard4"; -- User profiles (stored in PEP)
+    "vcard_legacy"; -- Conversion between legacy vCard and PEP Avatar, vcard
+    "blocklist"; -- Allow users to block communications with other users
+    "posix"; -- POSIX functionality, sends server to background, enables syslog, etc.
+    "announce"; -- Send announcement to all online users
+    "s2s_bidi"; -- Bi-directional server-to-server (XEP-0288)
+    "tombstones"; -- Prevent registration of deleted accounts
+    "csi_simple"; -- Simple but effective traffic optimizations for mobile devices
+    "ping"; -- Replies to XMPP pings with pongs
+    "mam"; -- Store recent messages to allow multi-device synchronization
+    "lastactivity"; -- Allows users to query how long another user has been idle
+    "user_account_management"; -- This module provides account management tasks such as password change
+    "http"; -- HTTP and HTTPS
+    "external_services"; -- allows clients to discover external services via XEP-0215
+    "privilege"; -- allows components to handle the roster
+{% if not prosody_insecure_test_only %}
+    "tls"; -- Add support for secure TLS on c2s/s2s connections
+{% endif %}
+{% if prosody_allowed_registration %}
+    "register"; -- Allow users to register on this server using a client and change passwords
+    "watchregistrations"; -- Alert admins of registrations
+{% endif %}
+{% if prosody_turn_enabled %}
+    "turn_external"; -- Provide external STUN/TURN service for e.g. audio/video calls
+{% endif %}
+{% if prosody_shared_roster != '' %}
+    "groups"; -- Shared roster support
+{% endif %}
+{% if prosody_motd != '' %}
+    "motd"; -- Send a message to users when they log in
+{% endif %}
+{% if prosody_welcome != '' %}
+    "welcome"; -- Welcome users who register accounts
+{% endif %}
+{% if prosody_bosh_enabled %}
+    "bosh"; -- Enable BOSH clients, aka "Jabber over HTTP"
+{% endif %}
+{% if prosody_openmetrics_enabled %}
+    "http_openmetrics"; -- for exposing metrics to stats collectors
+{% endif %}
+{% if prosody_websocket_enabled %}
+    "websocket"; -- XMPP over WebSockets
+{% endif %}
+{% if prosody_conversejs_enabled %}
+    "conversejs";
+{% endif %}
+{% for module in prosody_modules %}
+    "{{ module }}";
+{% endfor %}
+
+
+    {# Disabled
+    --"time"; -- Let others know the time here on this server
+    --"uptime"; -- Report how long server has been running
+    --"invites"; -- Create and manage invites
+    --"invites_adhoc"; -- Allow admins/users to create invitations via their client
+    --"invites_register"; -- Allows invited users to create accounts
+    --"version"; -- Replies to server version requests
+    --"mimicking"; -- Prevent address spoofing
+    --"server_contact_info"; -- Publish contact information for this service
+    #}
+}
+
+http_ports = { {{ prosody_http_port }} }
+http_interfaces = {
+{% for l in prosody_http_listen %}
+    "{{ l }}",
+{% endfor %}
+}
+
+https_ports = { {{ prosody_https_port }} }
+https_interfaces = {
+{% for l in prosody_https_listen %}
+    "{{ l }}",
+{% endfor %}
+}
+
+{% if prosody_http_external_url != '' %}
+http_external_url = "{{ prosody_http_external_url }}"
+{% endif %}
+
+trusted_proxies = {
+{% for l in prosody_trusted_proxies %}
+    "{{ l }}",
+{% endfor %}
+}
+
+{% if prosody_shared_roster != '' %}
+groups_file = "/etc/prosody/sharedgroups.txt"
+{% endif %}
+
+{% if prosody_motd != '' %}
+motd_text = [[
+{{ prosody_motd }}
+]]
+{% endif %}
+
+{% if prosody_welcome != '' %}
+welcome_message = "{{ prosody_welcome }}"
+{% endif %}
+
+{#
+-- These modules are auto-loaded, but should you want
+-- to disable them then uncomment them here:
+#}
+modules_disabled = {
+    -- "offline"; -- Store offline messages
+    -- "c2s"; -- Handle client connections
+    -- "s2s"; -- Handle server-to-server connections
+}
+
+{#
+-- Debian:
+--   Please, don't change this option since /run/prosody/
+--   is one of the few directories Prosody is allowed to write to
+#}
+pidfile = "/run/prosody/prosody.pid";
+
+{% if not prosody_insecure_test_only %}
+{# Server-to-server authentication #}
+s2s_secure_auth = true
+{# C2S and S2S require encryptions? #}
+c2s_require_encryption = true
+s2s_require_encryption = true
+{% else %}
+{# Server-to-server authentication #}
+s2s_secure_auth = false
+{# C2S and S2S require encryptions? #}
+c2s_require_encryption = false
+s2s_require_encryption = false
+
+allow_unencrypted_plain_auth = true
+consider_bosh_secure = true
+consider_websocket_secure = true
+{% endif %}
+
+{#
+-- Rate limits
+-- Enable rate limits for incoming client and server connections. These help
+-- protect from excessive resource consumption and denial-of-service attacks.
+#}
+limits = {
+    c2s = {
+        rate = "10kb/s";
+    };
+    s2sin = {
+        rate = "30kb/s";
+    };
+}
+
+{#
+-- Authentication
+-- Select the authentication backend to use. The 'internal' providers
+-- use Prosody's configured data storage to store the authentication data.
+-- For more information see https://prosody.im/doc/authentication
+#}
+authentication = "internal_hashed"
+
+{#
+-- Storage
+-- Select the storage backend to use. By default Prosody uses flat files
+-- in its configured data directory, but it also supports more backends
+-- through modules. An "sql" backend is included by default, but requires
+-- additional dependencies. See https://prosody.im/doc/storage for more info.
+
+--storage = "sql" -- Default is "internal" (Debian: "sql" requires one of the
+-- lua-dbi-sqlite3, lua-dbi-mysql or lua-dbi-postgresql packages to work)
+
+-- For the "sql" backend, you can uncomment *one* of the below to configure:
+--sql = { driver = "SQLite3", database = "prosody.sqlite" } -- Default. 'database' is the filename.
+--sql = { driver = "MySQL", database = "prosody", username = "prosody", password = "secret", host = "localhost" }
+--sql = { driver = "PostgreSQL", database = "prosody", username = "prosody", password = "secret", host = "localhost" }
+#}
+
+{#
+-- Archiving configuration
+-- If mod_mam is enabled, Prosody will store a copy of every message. This
+-- is used to synchronize conversations between multiple clients, even if
+-- they are offline. This setting controls how long Prosody will keep
+-- messages in the archive before removing them.
+#}
+archive_expires_after = "{{ prosody_archive_expires_after }}"
+
+{#
+-- Audio/video call relay (STUN/TURN)
+-- To ensure clients connected to the server can establish connections for
+-- low-latency media streaming (such as audio and video calls), it is
+-- recommended to run a STUN/TURN server for clients to use. If you do this,
+-- specify the details here so clients can discover it.
+-- Find more information at https://prosody.im/doc/turn
+#}
+{% if prosody_turn_enabled %}
+{# Specify the address of the TURN service (you may use the same domain as XMPP) #}
+turn_external_host = "{{ prosody_turn_hostname }}"
+{# This secret must be set to the same value in both Prosody and the TURN server #}
+turn_external_secret = "{{ prosody_turn_secret }}"
+{% endif %}
+
+{#
+-- Logging configuration
+-- For advanced logging see https://prosody.im/doc/logging
+--
+-- Debian:
+--  Logs info and higher to /var/log
+--  Logs errors to syslog also
+#}
+log = {
+    debug = "/var/log/prosody/prosody.debug";
+    {# Log files (change 'info' to 'debug' for debug logs): #}
+    info = "/var/log/prosody/prosody.log";
+    error = "/var/log/prosody/prosody.err";
+    {# Syslog: #}
+    { levels = { "error" }; to = "syslog";  };
+}
+
+{#
+-- Uncomment to enable statistics
+-- For more info see https://prosody.im/doc/statistics
+#}
+statistics = "internal"
+
+{#
+-- Certificates
+-- Every virtual host and component needs a certificate so that clients and
+-- servers can securely verify its identity. Prosody will automatically load
+-- certificates/keys from the directory specified here.
+-- For more information, including how to use 'prosodyctl' to auto-import certificates
+-- (from e.g. Let's Encrypt) see https://prosody.im/doc/certificates
+-- Location of directory to find certificates in (relative to main config file):
+#}
+certificates = "certs"
+
+{#
+-- How to resolve resource conflicts. May be "random" (assign a random
+-- resource), "increment" (append a unique integer to the resource), "kick_new"
+-- (deny the new connection), "kick_old" (disconnect the existing session).
+-- Default is "kick_old". 
+#}
+conflict_resolve = "{{ prosody_conflict_resolve }}"
+
+{#
+-- When set to true, Prosody will ignore the priority set by the client when
+-- routing messages. In effect any incoming messages to the user’s bare JID
+-- will be broadcast to all of the user’s connected resources instead of the
+-- one(s) with the highest priority.
+#}
+{% if prosody_ignore_presence_priority %}
+ignore_presence_priority = true
+{% endif %}
+
+{#
+-- Whether to allow registration of new accounts via Jabber clients.
+#}
+{% if prosody_allowed_registration %}
+allow_registration = true
+{% else %}
+allow_registration = false
+{% endif %}
+
+{# =========== VIRTUAL HOSTS =========== #}
+{% for vhost in prosody_vhosts %}
+
+VirtualHost "{{ vhost.hostname }}"
+  privileged_entities = {
+{% if prosody_slidge_enabled %}
+{% for key, svc in prosody_slidge_plugins.items() %}
+    ["{{ svc.hostname }}"] = {roster = "both"; message = "outgoing"},
+{% endfor %}
+{% endif %}
+  }
+
+{% if 'muc' in vhost %}
+Component "{{ vhost.muc }}" "muc"
+    restrict_room_creation = "local"
+    max_history_messages = 2000000
+    muc_log_by_default = true
+    muc_log_expires_after = "{{ prosody_archive_expires_after }}"
+modules_enabled = {
+    "muc_mam",
+}
+{% endif %}
+
+{% if 'http_file_share' in vhost %}
+Component "{{ vhost.http_file_share }}" "http_file_share"
+    http_file_share_expires_after = {{ vhost.http_file_share_expires_after | default(604800) }}
+    http_file_share_size_limit = {{ vhost.http_file_share_size_limit | default(104857600) }}
+    http_file_share_daily_quota = {{ vhost.http_file_share_daily_quota | default(104857600) }}
+    http_file_share_global_quota = {{ vhost.http_file_share_global_quota | default(1048576000) }}
+{% endif %}
+
+{% if 'proxy65' in vhost %}
+Component "{{ vhost.proxy65 }}" "proxy65"
+{% endif %}
+
+{% if prosody_slidge_enabled %}
+{% for key, svc in prosody_slidge_plugins.items() %}
+Component "{{ svc.hostname }}"
+    component_secret = "{{ prosody_slidge_secret }}"
+    modules_enabled = { "privilege" }
+{% endfor %}
+{% endif %}
+
+{% endfor %}

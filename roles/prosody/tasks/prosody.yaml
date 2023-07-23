@@ -1,0 +1,56 @@
+- name: Install prosody from bullseye-backports
+  become: true
+  apt:
+    name:
+      - prosody
+      - prosody-modules
+    default_release: bullseye-backports
+  when: ansible_distribution_release == 'bullseye'
+
+- name: Install prosody in bookworm
+  become: true
+  apt:
+    name:
+      - prosody
+      - prosody-modules
+  when: ansible_distribution_release == 'bookworm'
+
+- name: Install prosody in bookworm
+  become: true
+  apt:
+    name:
+      - luarocks
+
+- name: Generate prosody shared roster database
+  become: true
+  copy:
+    content: "{{ prosody_shared_roster }}"
+    dest: /etc/prosody/sharedgroups.txt
+    mode: '0640'
+    owner: root
+    group: prosody
+  when: prosody_shared_roster != ''
+  notify: "Reload prosody configuration"
+
+# Currently broken in Bookworm
+- name: Check if converse.js module is installed
+  become: true
+  stat:
+    path: /var/lib/prosody/custom_plugins/lib/luarocks/rocks/mod_conversejs
+  register: conversejs
+  when: prosody_conversejs_enabled and ansible_distribution_release == 'bullseye'
+
+- name: Install converse.js prosody module
+  become: true
+  command: prosodyctl install --server=https://modules.prosody.im/rocks/ mod_conversejs
+  when: prosody_conversejs_enabled and not conversejs.stat.exists and ansible_distribution_release == 'bullseye'
+
+- name: Generate prosody global configuration
+  become: true
+  template:
+    src: prosody.cfg.lua.j2
+    dest: /etc/prosody/prosody.cfg.lua
+    mode: '0640'
+    owner: root
+    group: prosody
+  notify: "Reload prosody configuration"

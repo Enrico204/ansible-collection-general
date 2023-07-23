@@ -1,0 +1,66 @@
+prosody_https_port: 5281
+prosody_https_listen: ["*", "::"]
+prosody_http_port: 5280
+prosody_http_listen: ["127.0.0.1", "::1"]
+
+# External URL when using reverse proxy
+prosody_http_external_url: ""
+# Trusted reverse proxies
+prosody_trusted_proxies: ["127.0.0.1", "::1"]
+
+# Prosody admin JIDs
+prosody_admins: []
+
+# Additional Prosody modules to load.
+prosody_modules: ["admin_adhoc", "admin_shell"]
+
+# This setting enables certain flags to allow plaintext connections (useful
+# while debugging)
+prosody_insecure_test_only: false
+
+# When MAM is enabled, this controls how much time messages should be archived
+# on the server (e.g., 1w for 1 week)
+prosody_archive_expires_after: "never"
+
+# Prosody virtual hosts
+prosody_vhosts: []
+
+# How to resolve resource conflicts
+prosody_conflict_resolve: kick_old
+
+# Whether to allow registration of new accounts via Jabber clients
+prosody_allowed_registration: false
+
+# Shared roster. See here for the format:
+# https://prosody.im/doc/modules/mod_groups
+prosody_shared_roster: ""
+
+# Enable BOSH (XMLL-over-HTTP)
+prosody_bosh_enabled: false
+
+# Enable WebSocket
+prosody_websocket_enabled: false
+
+# Enable OpenMetrics endpoint
+prosody_openmetrics_enabled: false
+
+# Message of the day
+prosody_motd: ""
+
+# Welcome messages for new accounts (when registrations are allowed)
+prosody_welcome: ""
+
+# Ignore priorities on JIDs
+prosody_ignore_presence_priority: false
+
+# Install and configure STUN/TURN
+prosody_turn_enabled: false
+prosody_turn_hostname: ""
+prosody_turn_secret: ""
+prosody_turn_realm: "realm"
+
+# Enable converse.js in prosody built-in HTTP server
+prosody_conversejs_enabled: false
+
+# Enable slidge bridges
+prosody_slidge_enabled: false

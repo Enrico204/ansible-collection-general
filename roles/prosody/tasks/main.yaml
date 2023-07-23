@@ -1,0 +1,20 @@
+- name: Check if at least one vhost is specified
+  fail:
+    msg: "At least one vhost should be specified"
+  when: '(prosody_vhosts | length) == 0'
+
+- name: Check if TURN secret has been specified if TURN is enabled
+  fail:
+    msg: "TURN secret should be specified if TURN is enabled!"
+  when: 'prosody_turn_secret == "" and prosody_turn_enabled'
+
+- name: coturn
+  include_tasks: coturn.yaml
+  when: prosody_turn_enabled
+
+- name: prosody
+  include_tasks: prosody.yaml
+
+- name: slidge
+  include_tasks: slidge.yaml
+  when: prosody_slidge_enabled

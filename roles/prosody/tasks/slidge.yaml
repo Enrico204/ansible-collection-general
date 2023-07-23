@@ -1,0 +1,51 @@
+- name: check debian bookworm
+  fail:
+    msg: For now, this slidge task is compatible only with Debian Bookworm
+  when: ansible_distribution_release != 'bookworm'
+
+- module_defaults:
+    apt:
+      cache_valid_time: 86400
+  block:
+    - name: Add slidge repositories
+      include_tasks: _apt-repo.yml
+      loop:
+        - name: slidge
+          key: http://deb.slidge.im/repo/slidge.gpg.key
+          repo_line: "http://deb.slidge.im/repo/debian bookworm nightly"
+
+    - name: Install slidge
+      become: true
+      apt:
+        state: present
+        pkg:
+          - slidge
+
+    - name: Generate slidge general config
+      become: true
+      template:
+        src: slidge_common.conf.j2
+        dest: /etc/slidge/conf.d/common.conf
+        mode: '0640'
+        owner: root
+        group: slidge
+      notify: "Restart slidge {{ item.key }}"
+
+    - name: Generate slidge config for {{ item.key }}
+      become: true
+      template:
+        src: "{{ item.key }}.conf.j2"
+        dest: /etc/slidge/{{ item.key }}.conf
+        mode: '0640'
+        owner: root
+        group: slidge
+      loop: "{{ prosody_slidge_plugins | dict2items }}"
+      notify: "Restart slidge {{ item.key }}"
+
+    - name: Enable and start {{ item.key }}
+      become: true
+      systemd:
+        name: "slidge@{{ item.key }}.service"
+        state: started
+        enabled: true
+      loop: "{{ prosody_slidge_plugins | dict2items }}"
