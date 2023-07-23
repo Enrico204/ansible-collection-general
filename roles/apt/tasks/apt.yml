@@ -35,3 +35,6 @@
 ##### AUTO-UPDATE
 - name: unattended-upgrades
   import_tasks: unattended-upgrades.yml
+
+- name: Flush handlers
+  meta: flush_handlers
