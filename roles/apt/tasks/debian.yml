@@ -16,6 +16,7 @@
     state: absent
   loop:
     - /etc/apt/sources.list.d/20-nas.list
+    - /etc/apt/sources.list.d/30-debian-mirrors.list
     - /etc/apt/sources.list.d/50-debian.list
   notify: ["Update APT"]
 
