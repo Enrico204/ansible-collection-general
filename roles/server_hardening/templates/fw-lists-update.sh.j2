@@ -76,35 +76,46 @@ getlist() {
 	local URL=""
 	local URL6=""
 	case "$1" in
+		statuscake)
+			wget --timeout=60 -q "https://app.statuscake.com/Workfloor/Locations.php?format=txt" -O "$2.list1"
+			wget --timeout=60 -q "https://app.statuscake.com/API/SpeedLocations/json" -O - | jq -r '.[] | .ip' > "$2.list2"
+			cat <<EOF > "$2.list3"
+162.243.141.135
+107.170.235.240
+104.236.163.90
+EOF
+			cat "$2.list1" "$2.list2" "$2.list3" > "$2"
+			rm -f "$2.list1" "$2.list2" "$2.list3"
+			;;
 		tor)
 			URL=https://check.torproject.org/torbulkexitlist
 			;;
 		fireholL1)
-			URL=https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/firehol_level1.netset
+			URL=https://iplists.firehol.org/files/firehol_level1.netset
 			;;
 		fireholL2)
-			URL=https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/firehol_level2.netset
+			URL=https://iplists.firehol.org/files/firehol_level2.netset
 			;;
 		fireholL3)
-			URL=https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/firehol_level3.netset
+			URL=https://iplists.firehol.org/files/firehol_level3.netset
 			;;
 		fireholL4)
-			URL=https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/firehol_level4.netset
+			URL=https://iplists.firehol.org/files/firehol_level4.netset
 			;;
 		fireholWEBSRV)
-			URL=https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/firehol_webserver.netset
+			URL=https://iplists.firehol.org/files/firehol_webserver.netset
 			;;
 		fireholANONYM)
-			URL=https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/firehol_anonymous.netset
+			URL=https://iplists.firehol.org/files/firehol_anonymous.netset
 			;;
 		fireholABUSER1)
-			URL=https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/firehol_abusers_1d.netset
+			URL=https://iplists.firehol.org/files/firehol_abusers_1d.netset
 			;;
 		fireholABUSER30)
-			URL=https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/firehol_abusers_30d.netset
+			URL=https://iplists.firehol.org/files/firehol_abusers_30d.netset
 			;;
 		fireholDC)
-			URL=https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/datacenters.netset
+			URL=https://iplists.firehol.org/files/datacenters.netset
 			;;
 		ipdenyRU)
 			URL=https://www.ipdeny.com/ipblocks/data/aggregated/ru-aggregated.zone

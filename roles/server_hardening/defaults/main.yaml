@@ -3,21 +3,37 @@ ssh_hardening: true
 ssh_root_key_access: true
 
 # Firewall
+# Enable either iptables, nftables or neither of those. When one is enabled,
+# tools from the other are removed.
+fw_iptables: false
+fw_nftables: false
+# These IPv4 and IPv6 are always allowed for SSH management, even before blacklists.
 fw_safe_mgmt4: []
 fw_safe_mgmt6: []
+# SSH port for management (see above)
 fw_ssh_port: 22
+# These services are accessible by everyone, except IPs in blacklists.
 fw_public_services: []
+# These services are accessible only from IPs in whitelist (either lists or fixed IPs).
 fw_whitelist_services: []
 fw_whitelist_net4: []
 fw_whitelist_net6: []
+# These are generic rules.
 fw_rules: []
+# Here you can specify custom nft rules that are added in the "input" chain.
 fw_nft_input: ""
-
-fw_iptables: false
-fw_nftables: false
-
+# Blacklists names. Supported blacklists: TODO see in the script
 fw_blacklists: []
+# IP lists for the restricted services.
 fw_whitelists: []
+
+
+
+
+# fw_psad: false
+# TODO: psad
+
+
 auditd_enabled: false
 auditd_rules: ""
 # rkhunter
