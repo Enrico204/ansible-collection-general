@@ -55,3 +55,15 @@
         - v4
         - v6
       notify: ["Reload iptables rules", "Reload black/white lists", "Restart fail2ban"]
+
+    - name: Set flush for iptables-restore
+      become: true
+      copy:
+        content: |
+          IPTABLES_RESTORE_NOFLUSH=no
+          IP6TABLES_RESTORE_NOFLUSH=no
+        dest: "/etc/default/netfilter-persistent"
+        mode: 0644
+        owner: root
+        group: root
+      notify: ["Reload iptables rules"]
