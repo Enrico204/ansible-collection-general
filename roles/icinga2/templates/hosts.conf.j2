@@ -143,6 +143,9 @@ object Host "{{ host }}" {
 {% if icinga2_user_tg is defined %}
     vars.notification.telegram = true
 {% endif %}
+{% if icinga2_user_xmpp is defined %}
+    vars.notification.xmpp = true
+{% endif %}
 }
 
 {% if 'icinga2_depends_on_host' in hostvars[host] and hostvars[host]['icinga2_depends_on_host'] != host %}
@@ -169,9 +172,16 @@ object Host NodeName {
         disk_partitions = "/"
     }
 
+{% if icinga2_user_email is defined %}
     vars.notification["mail"] = {
         groups = [ "icingaadmins" ]
     }
     vars.notify_users = [ "icingaadmin" ]
+{% endif %}
+{% if icinga2_user_tg is defined %}
     vars.notification.telegram = true
+{% endif %}
+{% if icinga2_user_xmpp is defined %}
+    vars.notification.xmpp = true
+{% endif %}
 }

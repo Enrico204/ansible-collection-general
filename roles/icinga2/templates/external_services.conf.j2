@@ -42,11 +42,13 @@ object Host "external-services" {
     vars.notification["mail"] = {
         groups = [ "icingaadmins" ]
     }
-    vars.notify_users = [ "icingaadmin" ]
 {% endif %}
-
 {% if icinga2_user_tg is defined %}
     vars.notification.telegram = true
 {% endif %}
+{% if icinga2_user_xmpp is defined %}
+    vars.notification.xmpp = true
+{% endif %}
+    vars.notify_users = [ "icingaadmin" ]
 }
 {% endif %}

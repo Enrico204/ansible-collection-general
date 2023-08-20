@@ -11,6 +11,10 @@ object User "{{ icinga2_user }}" {
 {% if icinga2_user_tg is defined %}
     vars.telegram_chat_id = "{{ icinga2_user_tg }}"
 {% endif %}
+
+{% if icinga2_user_xmpp is defined %}
+    vars.xmpp_jid = "{{ icinga2_user_xmpp }}"
+{% endif %}
 }
 
 object UserGroup "icingaadmins" {

@@ -50,6 +50,15 @@
         - downtime.conf
         - timeperiods.conf
 
+# TELEGRAM
+    - name: Install Telegram requirements
+      become: true
+      apt:
+        pkg:
+          - curl
+        state: present
+      when: icinga2_user_tg is defined
+
     - name: Copy Telegram notifications definition
       become: true
       copy:
@@ -72,6 +81,38 @@
       when: icinga2_user_tg is defined
       notify: "Reload icinga2"
 
+# XMPP
+    - name: Install XMPP requirements
+      become: true
+      apt:
+        pkg:
+          - sendxmpp
+        state: present
+      when: icinga2_user_xmpp is defined
+
+    - name: Copy XMPP notifications definition
+      become: true
+      copy:
+        src: xmpp-notifications-command.conf
+        dest: /etc/icinga2/conf.d/xmpp-notifications-command.conf
+        mode: 0600
+        owner: nagios
+        group: nagios
+      when: icinga2_user_xmpp is defined
+      notify: "Reload icinga2"
+
+    - name: Copy XMPP notifications settings
+      become: true
+      template:
+        src: xmpp-notifications-configuration.conf.j2
+        dest: /etc/icinga2/conf.d/xmpp-notifications-configuration.conf
+        mode: 0600
+        owner: nagios
+        group: nagios
+      when: icinga2_user_xmpp is defined
+      notify: "Reload icinga2"
+
+# Custom check commands
     - name: Copy custom check commands
       become: true
       copy:

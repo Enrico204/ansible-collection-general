@@ -1,0 +1,87 @@
+## User Configuration
+
+template Notification "xmpp-notifications-default-configuration" {
+  types = [ Problem, Recovery, Custom,
+            FlappingStart, FlappingEnd ]
+  #types = [ Problem, Acknowledgement, Recovery, Custom,
+  #          FlappingStart, FlappingEnd ]
+            # DowntimeStart, DowntimeEnd, DowntimeRemoved ]
+  vars.users_fallback = [ "icingaadmin" ]
+  users = (host.vars.notify_users) || vars.users_fallback
+  period = "24x7"
+
+  vars.xmpp_notifications_emoji = {
+    "OK" = "✅ ",
+    "WARNING" = "⚠️ ",
+    "CRITICAL" = "❌ ",
+    "UNKNOWN" = "❔" ,
+    "UP" = "♻️ ",
+    "DOWN" = "⛔ "
+  }
+}
+
+template Notification "xmpp-notifications-user-configuration" {
+  import "xmpp-notifications-default-configuration"
+  vars.xmpp_notifications_jid = "$user.vars.xmpp_jid$"
+  vars.xmpp_notifications_icinga2_base_url = "{{ icinga2_url | default("") }}"
+  
+  # Username without the component part
+  vars.xmpp_notifications_user = "{{ icinga2_xmpp_user }}"
+  vars.xmpp_notifications_password = "{{ icinga2_xmpp_password }}"
+  vars.xmpp_notifications_server = "{{ icinga2_xmpp_server }}"
+
+  {# TODO -#}
+  vars.xmpp_notifications_tls = true
+  vars.xmpp_notifications_tls_insecure = true
+}
+
+template Notification "xmpp-notifications-configuration" {
+  import "xmpp-notifications-user-configuration"
+
+  command = "xmpp-notifications-command"
+}
+
+
+## Hosts Configuration
+
+template Notification "xmpp-notifications-default-configuration-hosts" {
+  import "xmpp-notifications-configuration"
+
+  states = [ Up, Down ]
+}
+
+template Notification "xmpp-notifications-user-configuration-hosts" {
+  import "xmpp-notifications-default-configuration-hosts"
+}
+
+apply Notification "xmpp-notifications-notification-hosts" to Host {
+  import "xmpp-notifications-user-configuration-hosts"
+  interval = (host.vars.notification.interval) || {{ icinga2_notification_interval | default("1h") }}
+
+  period = "lighthours"
+
+  assign where host.vars.notification.xmpp == true
+}
+
+
+# Service Configuration
+
+template Notification "xmpp-notifications-default-configuration-services" {
+  import "xmpp-notifications-configuration"
+
+  states = [ OK, Warning, Critical ]
+      # , Unknown ]
+}
+
+template Notification "xmpp-notifications-user-configuration-services" {
+  import "xmpp-notifications-default-configuration-services"
+}
+
+apply Notification "xmpp-notifications-notification-services" to Service {
+  import "xmpp-notifications-user-configuration-services"
+  interval = (service.vars.notification.interval) || {{ icinga2_notification_interval | default("1h") }}
+
+  period = "lighthours"
+
+  assign where host.vars.notification.xmpp == true && service.vars.notification.xmpp != false
+}
