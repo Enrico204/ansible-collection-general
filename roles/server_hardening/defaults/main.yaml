@@ -36,8 +36,13 @@ fw_whitelists: []
 
 auditd_enabled: false
 auditd_rules: ""
+
+
 # rkhunter
 rkhunter_enabled: false
+
+
+fail2ban_enabled: true
 
 
 # Secure machine

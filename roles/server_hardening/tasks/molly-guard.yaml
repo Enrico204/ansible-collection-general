@@ -17,8 +17,21 @@
     group: root
     mode: '0600'
 
-- name: Install molly-guard
-  become: true
-  apt:
-    name: molly-guard
-    state: present
+- module_defaults:
+    apt:
+      cache_valid_time: 86400
+  block:
+    - name: Install molly-guard (apt)
+      become: true
+      apt:
+        name: molly-guard
+        state: present
+      when: ansible_os_family == 'Debian'
+
+    # NO PACKAGE, REPLACE WITH A SIMILAR ONE?
+    # - name: Install molly-guard (dnf)
+    #   become: true
+    #   dnf:
+    #     name: molly-guard
+    #     state: present
+    #   when: ansible_os_family == 'RedHat'

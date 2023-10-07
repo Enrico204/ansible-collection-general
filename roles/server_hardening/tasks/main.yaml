@@ -16,6 +16,7 @@
 
 - name: fail2ban
   include_tasks: fail2ban.yaml
+  when: fail2ban_enabled
 
 - name: firewall blacklists/whitelists
   include_tasks: fw_lists.yaml

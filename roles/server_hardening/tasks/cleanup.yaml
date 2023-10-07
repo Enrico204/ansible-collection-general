@@ -3,7 +3,7 @@
   user:
     name: "{{ item }}"
     state: absent
-  loop: [games, gnats, irc, news, sync, debian]
+  loop: [debian]
   notify: ["Update rkhunter db"]
 
 - name: Set default umask to 077
