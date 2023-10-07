@@ -130,7 +130,7 @@
         minute: "0"
         hour: "4"
         weekday: "0"
-        job: "docker system prune -f"
+        job: "docker system prune -f -a"
         user: root
       when: docker_autoclean
 
