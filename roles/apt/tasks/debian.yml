@@ -20,14 +20,24 @@
     - /etc/apt/sources.list.d/50-debian.list
   notify: ["Update APT"]
 
+- name: Set apt components
+  set_fact:
+    apt_components: main contrib non-free
+  when: ansible_distribution_release != 'bookworm'
+
+- name: Set apt components for bookworm
+  set_fact:
+    apt_components: main contrib non-free non-free-firmware
+  when: ansible_distribution_release == 'bookworm'
+
 - name: Set apt binary repositories
   become: true
   copy:
     content: |
-      deb {{ apt_mirror }} {{ ansible_distribution_release }} main contrib non-free
-      deb {{ apt_mirror }} {{ ansible_distribution_release }}-updates main contrib non-free
-      deb {{ apt_security_mirror }} {{ ansible_distribution_release }}-security main contrib non-free
-      deb {{ apt_mirror }} {{ ansible_distribution_release }}-backports main contrib non-free
+      deb {{ apt_mirror }} {{ ansible_distribution_release }} {{ apt_components }}
+      deb {{ apt_mirror }} {{ ansible_distribution_release }}-updates {{ apt_components }}
+      deb {{ apt_security_mirror }} {{ ansible_distribution_release }}-security {{ apt_components }}
+      deb {{ apt_mirror }} {{ ansible_distribution_release }}-backports {{ apt_components }}
     dest: /etc/apt/sources.list.d/20-debian-mirrors.list
     owner: root
     group: root
@@ -38,9 +48,9 @@
   become: true
   copy:
     content: |
-      deb http://deb.debian.org/debian {{ ansible_distribution_release }} main contrib non-free
-      deb http://deb.debian.org/debian {{ ansible_distribution_release }}-updates main contrib non-free
-      deb http://deb.debian.org/debian {{ ansible_distribution_release }}-backports main contrib non-free
+      deb http://deb.debian.org/debian {{ ansible_distribution_release }} {{ apt_components }}
+      deb http://deb.debian.org/debian {{ ansible_distribution_release }}-updates {{ apt_components }}
+      deb http://deb.debian.org/debian {{ ansible_distribution_release }}-backports {{ apt_components }}
     dest: /etc/apt/sources.list.d/50-debian-fallback.list
     owner: root
     group: root
@@ -52,7 +62,7 @@
   become: true
   copy:
     content: |
-      deb http://security.debian.org/debian-security {{ ansible_distribution_release }}-security main contrib non-free
+      deb http://security.debian.org/debian-security {{ ansible_distribution_release }}-security {{ apt_components }}
     dest: /etc/apt/sources.list.d/50-debian-fallback-security.list
     owner: root
     group: root
@@ -75,10 +85,10 @@
   become: true
   copy:
     content: |
-      deb-src http://deb.debian.org/debian {{ ansible_distribution_release }} main contrib non-free
-      deb-src http://deb.debian.org/debian {{ ansible_distribution_release }}-updates main contrib non-free
-      deb-src http://security.debian.org/debian-security {{ ansible_distribution_release }}-security main contrib non-free
-      deb-src http://deb.debian.org/debian/ {{ ansible_distribution_release }}-backports main contrib non-free
+      deb-src http://deb.debian.org/debian {{ ansible_distribution_release }} {{ apt_components }}
+      deb-src http://deb.debian.org/debian {{ ansible_distribution_release }}-updates {{ apt_components }}
+      deb-src http://security.debian.org/debian-security {{ ansible_distribution_release }}-security {{ apt_components }}
+      deb-src http://deb.debian.org/debian/ {{ ansible_distribution_release }}-backports {{ apt_components }}
     dest: /etc/apt/sources.list.d/60-debian-sources.list
     owner: root
     group: root
