@@ -13,3 +13,10 @@
       - golang
     default_release: bullseye-backports
   when: ansible_distribution_release == 'bullseye'
+
+- name: Ensure that Go is installed
+  become: true
+  apt:
+    name:
+      - golang
+  when: ansible_distribution_release == 'bookworm'

@@ -3,4 +3,4 @@
 
 - name: Debian
   import_tasks: debian.yml
-  when: ansible_distribution_release == 'bullseye' and ansible_distribution == 'Debian'
+  when: (ansible_distribution_release == 'bullseye' or ansible_distribution_release == 'bookworm') and ansible_distribution == 'Debian'
