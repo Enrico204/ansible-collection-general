@@ -1,7 +1,7 @@
 #!/usr/sbin/nft -f
 
-flush ruleset
-
+table inet fw {]
+delete table inet fw
 table inet fw {
 
 {# Create blacklist sets #}
@@ -65,7 +65,7 @@ table inet fw {
     }
 
     chain inbound {
-        type filter hook input priority 1; policy drop;
+        type filter hook input priority filter - 1; policy drop;
         {# Always allow loopback traffic -#}
         iif "lo" accept
 
@@ -170,15 +170,44 @@ table inet fw {
     }
 
     chain forward {
-        type filter hook forward priority 1; policy drop;
+        type filter hook forward priority filter - 1; policy drop;
+
+        {# Connection tracking: allow established traffic without further analysis, drop packets in a INVALID state -#}
+        ct state established,related accept
+        ct state invalid counter drop
+
+        {# Block TCP traffic with no SYN flag and no conntrack entry #}
+        tcp flags & (fin|syn|rst|ack) != syn ct state new counter drop comment "Block TCP w/o SYN and conntrack"
+
+        {# Block old TCP attacks #}
+        tcp flags & (fin|syn|rst|psh|ack|urg) == fin|syn|rst|psh|ack|urg counter drop comment "Block TCP XMAS"
+        tcp flags & (fin|syn|rst|psh|ack|urg) == 0x0 counter drop comment "Block TCP NULL"
+        tcp flags syn tcp option maxseg size 1-535 counter drop comment "Block uncommon MSS"
+
+        {# Block remote packets claiming to be from a loopback address -#}
+        iif != lo ip  saddr 127.0.0.0/8 counter drop comment "Block martian packets"
+        iif != lo ip6 saddr ::1/128     counter drop comment "Block martian packets"
+
         {# Blacklists #}
         iifname "{{ fw_wan }}" jump blacklists comment "Drop blacklisted IPs from WAN"
+        
+        {# Allow docker #}
+{% for intf in fw_docker_interfaces %}
+        iifname "{{ intf }}" accept
+        oifname "{{ intf }}" accept
+{% endfor %}
+
+        {# Custom nft rules -#}
+        {{ fw_nft_forward | default("") }}
     }
 }
 
+table ip fw {}
+delete table ip fw
 table ip fw {
     chain postfwdrouting {
-        type nat hook postrouting priority 100; policy accept;
-{{ fw_nft_snat | default("") }}
+        type nat hook postrouting priority srcnat - 1; policy accept;
+        {# Custom nft rules -#}
+        {{ fw_nft_snat | default("") }}
     }
 }

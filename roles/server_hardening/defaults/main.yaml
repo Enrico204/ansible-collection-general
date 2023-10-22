@@ -45,9 +45,21 @@ rkhunter_enabled: false
 fail2ban_enabled: true
 
 
+
+# Secure password - installs
+# * cracklib-runtime
+# * libpam-pwquality
+# * libpam-tmpdir
+secure_pam: false
+
+
+
 # Secure machine
+kernel_lockdown: false
 disable_core_dumps: false
+secure_logind: false
 secure_cron: false
+secure_sysctl: false
 
 molly_guard: true
 banner_show_ssh: false
@@ -75,3 +87,18 @@ ntp_servers:
   - 1.pool.ntp.org
   - 2.pool.ntp.org
 
+# AIDE
+aide_enabled: false
+aide_custom_rules: |
+  !/opt
+  !/home
+  !/root
+  !/var/cache/
+  !/var/lib/docker
+  !/var/lib/containers
+  !/var/lib/containerd
+  !/var/lib/lxcfs/cgroup
+  !/run
+  !/tmp/tmux-0/default
+  !/var/lib/dhcp
+  !/var/log

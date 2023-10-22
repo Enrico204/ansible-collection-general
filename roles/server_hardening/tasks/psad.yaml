@@ -1,0 +1,24 @@
+# Remove
+- name: Ensure PSAD is installed
+  become: true
+  apt:
+    state: absent
+    pkg:
+      - psad
+    purge: true
+  when: not fw_psad
+
+
+# Install/configure
+- name: Ensure PSAD is installed
+  become: true
+  apt:
+    state: absent
+    pkg:
+      - psad
+    purge: true
+  when: fw_psad
+
+# TODO: Wait until nftables/iptables/docker mess is solved
+# https://www.howtoforge.com/tutorial/psad-installation-and-configuration-on-debian-jessie/
+# https://github.com/konstruktoid/hardening/blob/master/scripts/psad

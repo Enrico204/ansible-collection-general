@@ -1,0 +1,11 @@
+# TODO: remove nullok from PAM common-auth
+
+
+# TODO: faillock/pam_tally2
+# https://github.com/dev-sec/ansible-collection-hardening/blob/master/roles/os_hardening/tasks/pam_debian.yml
+# https://github.com/dev-sec/ansible-collection-hardening/blob/master/roles/os_hardening/tasks/pam_rhel.yml
+# https://github.com/dev-sec/ansible-collection-hardening/blob/master/roles/os_hardening/templates/etc/security/faillock.conf.j2
+
+# https://github.com/konstruktoid/hardening/blob/master/scripts/password
+
+# https://unix.stackexchange.com/questions/111460/log-every-command-typed-in-any-shell-output-from-logger-function-to-syslog-ng

@@ -1,0 +1,57 @@
+- name: Install AIDE package
+  become: true
+  apt:
+    name: aide
+    state: present
+
+- name: Configure AIDE
+  become: true
+  copy:
+    dest: /etc/aide/aide.conf.d/90_aide_custom
+    content: "{{ aide_custom_rules }}"
+    owner: root
+    group: root
+    mode: 0640
+  register: aidecfg
+
+- name: Disable daily check (Debian default)
+  become: true
+  file:
+    path: /etc/cron.daily/aide
+    state: absent
+
+- name: Enable weekly check
+  become: true
+  copy:
+    src: aide
+    dest: /etc/cron.weekly/aide
+    owner: root
+    group: root
+    mode: 0700
+
+- name: Check new configuration
+  become: true
+  command: /usr/bin/aide --config-check --config /etc/aide/aide.conf
+  when: aidecfg.changed
+  changed_when: false
+
+- name: Register if AIDE db exists
+  stat:
+    path: "/var/lib/aide/aide.db"
+  register: aidedb
+  changed_when: false
+
+- name: Initialize AIDE database
+  become: true
+  command: /usr/sbin/aideinit -f
+  when: not aidedb.stat.exists
+  notify: "Apply AIDE database"
+
+- name: Update AIDE database
+  become: true
+  command: /usr/bin/aide --update --config /etc/aide/aide.conf
+  when: aidedb.stat.exists and aidecfg.changed
+  notify: "Apply AIDE database"
+  register: aideupdate
+  changed_when: aideupdate.rc > 0 and aideupdate.rc < 14
+  failed_when: aideupdate.rc >= 14

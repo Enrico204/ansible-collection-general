@@ -34,9 +34,25 @@
   include_tasks: cron.yaml
   when: secure_cron
 
+- name: kernel lockdown
+  include_tasks: lockdown.yaml
+  when: kernel_lockdown
+
 - name: core dumps
   include_tasks: coredumps.yaml
   when: disable_core_dumps
+
+- name: logind
+  include_tasks: logind.yaml
+  when: secure_logind and ansible_service_mgr == "systemd"
+
+- name: sysctl
+  include_tasks: sysctl.yaml
+  when: secure_sysctl
+
+- name: AIDE
+  include_tasks: aide.yaml
+  when: aide_enabled
 
 - name: APT
   include_tasks: apt.yaml
