@@ -29,4 +29,4 @@
 
     - name: Configure restic remote sync
       import_tasks: remote-sync.yml
-      when: rclone
+      when: rclone or restic_agent_remote_sync

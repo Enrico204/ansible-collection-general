@@ -92,8 +92,8 @@ restic_agent_cron: "anacron"
 
 restic_cleanup: false
 
+restic_agent_remote_sync: false
 rclone: false
-rclone_prune: false
 rclone_version: 1.57.0
 rclone_sha256:
   Linux:

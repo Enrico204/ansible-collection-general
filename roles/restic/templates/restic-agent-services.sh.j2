@@ -7,12 +7,18 @@ export RESTIC_REPOSITORY='{{ restic_agent_repository }}'
 {% if restic_agent_password != "" %}
 export RESTIC_PASSWORD='{{ restic_agent_password }}'
 {% endif %}
+{% if (restic_agent_cgroups2_devices | default([])) | length > 0 %}
+CGROUP2_BASE="$(mount | grep cgroup2 | cut -d ' ' -f 3)"
+CGROUP2_PATH="$CGROUP2_BASE/restic-agent"
+{% endif %}
+export RESTIC_TAGS="--tag MANUAL"
 
 {# In scheduled tasks, add a random delay #}
 if [ "${1:-}" == "-cron" ]; then
 {% if restic_agent_delayed_start_max > 0 %}
 	sleep $(($RANDOM % {{ restic_agent_delayed_start_max }}))
 {% endif %}
+	RESTIC_TAGS=""
 
     {# Redirect stdout and stderr to syslog #}
     {#exec 3>&1 4>&2
@@ -20,37 +26,105 @@ if [ "${1:-}" == "-cron" ]; then
 
 fi
 
+DEFER=""
+defer() {
+	DEFER="$(printf "%q " "$@"); $DEFER"
+	trap "$DEFER" EXIT
+}
+
+__cleanup() {
+	# Disable the error trap handler to prevent potential recursion
+	trap - EXIT
+    trap - ERR
+	# Disable errors
+	set +Eeuo pipefail
+
+{% if (restic_agent_cgroups2_devices | default([])) | length > 0 %}
+	{# Switch current process to root cgroup #}
+	echo $$ > "$CGROUP2_BASE/cgroup.procs"
+	if [ -d "$CGROUP2_PATH" ]; then
+		rmdir "$CGROUP2_PATH"
+	fi
+{% endif %}
+	exit 0
+}
+defer __cleanup
+
+__handle_errors() {
+	local exitcode=$1
+	local bashcmd=$3
+	local lineno=$2
+	# Disable the error trap handler to prevent potential recursion
+	trap - ERR
+	# Disable errors
+	set +Eeuo pipefail
+
+	>&2 printf "Exit status $exitcode at line $lineno, command: $bashcmd\n"
+
+	# Exit with failure status
+	exit $exitcode
+}
+
+# Print error messages
+trap '__handle_errors $? $LINENO "$BASH_COMMAND"' ERR
+
+{% if (restic_agent_cgroups2_devices | default([])) | length > 0 %}
+# Limit I/O with cgroups2
+{# Create cgroup #}
+if [ -d "$CGROUP2_PATH" ]; then
+	rmdir "$CGROUP2_PATH"
+fi
+mkdir "$CGROUP2_PATH"
+
+{# Enable I/O controller on root cgroup #}
+echo "+io" > "$CGROUP2_BASE/cgroup.subtree_control"
+
+{# Limit to MB/s and IOPS #}
+{% for device in restic_agent_cgroups2_devices %}
+DEV_ADDR="$(cat /proc/partitions | grep -E ' {{ device.name }}$' | tr -s ' ' | cut -f 2,3 -d ' ' | tr ' ' ':')"
+echo "$DEV_ADDR rbps={{ device.bps | default(10485760) }} wbps={{ device.bps | default(10485760) }} riops={{ device.iops | default(2000) }} wiops={{ device.iops | default(2000) }}" > "$CGROUP2_PATH/io.max"
+{% endfor %}
+
+{# Switch current process to cgroup #}
+echo $$ > "$CGROUP2_PATH/cgroup.procs"
+
+{# Skip IONICE #}
+IONICE=""
+{% else %}
+# Limit I/O with ionice
 IONICE="ionice -c 3"
 if ! command -v ionice &> /dev/null
 then
 	IONICE=""
 fi
+{% endif %}
 
 {# Tidy cache #}
 restic cache --cleanup
 
 {% if service.type == 'mysql' %}
-# Use MySQLdump for dumping one or more databases to stdout
+{# Use MySQLdump for dumping one or more databases to stdout #}
 nice -n 19 $IONICE mysqldump -h "{{ service.host }}" -P {{ service.port | default(3306) }} -u "{{ service.user }}" -p"{{ service.pass }}" \
     --opt --single-transaction --routines --triggers -R \
     {% if service.databases is defined %} --databases {{ service.databases | join(" ") }} {% else %} --all-databases {% endif %} \
     | sed -e 's/^CREATE DEFINER=.* \(FUNCTION\|PROCEDURE\)/CREATE \1/' \
     | restic backup  \
     --host="{{ service.name }}"     \
+	$RESTIC_TAGS                    \
 	--stdin                         \
     --stdin-filename "{{ service.filename | default('stdin.sql') }}" \
     {{ restic_agent_custom_opts }}
 
 {% elif service.type == 'pgsql' %}
-# PostgreSQL connection string need to be specified in a file named `.pgpass`. So, only one process at time can run
-# Use flock to acquire a lock, fail after 4 hours
+{# PostgreSQL connection string need to be specified in a file named `.pgpass`. So, only one process at time can run #}
+{# Use flock to acquire a lock, fail after 4 hours #}
 umask 0077
 exec 200>/tmp/pgpass-lock
 flock -w 14400 200
 
-# Create pgpass
+{# Create pgpass #}
 remove_pgpass() { rm -f ~/.pgpass; }
-trap remove_pgpass EXIT
+defer remove_pgpass
 printf "%s:%d:%s:%s:%s" "{{ service.host }}" {{ service.port | default(5432) }} "{{ service.database }}" "{{ service.user }}" "{{ service.pass }}" > ~/.pgpass
 
 PGOPTIONS='--client-min-messages=warning' nice -n 19 $IONICE \
@@ -58,6 +132,7 @@ PGOPTIONS='--client-min-messages=warning' nice -n 19 $IONICE \
     --compress=0 -Fc {{ service.database }} \
     | restic backup  \
     --host="{{ service.name }}"     \
+	$RESTIC_TAGS                    \
 	--stdin                         \
     --stdin-filename "{{ service.filename | default('stdin.bak') }}" \
     {{ restic_agent_custom_opts }}
@@ -67,7 +142,7 @@ flock -u 200
 
 {% elif service.type == 'mikrotik' %}
 eval $(ssh-agent -s | grep -v echo)
-# Mikrotik requires an SSH key
+{# Mikrotik requires an SSH key #}
 ssh-add - 2>/dev/null <<EOF
 {{ service.ssh_privkey }}
 EOF
@@ -78,6 +153,7 @@ ssh -o StrictHostKeyChecking=no \
     "/export"                       \
     | restic backup  \
     --host="{{ service.name }}"     \
+	$RESTIC_TAGS                    \
 	--stdin                         \
     --stdin-filename "{{ service.filename | default('stdin.rsc') }}" \
     {{ restic_agent_custom_opts }}
@@ -93,6 +169,7 @@ redis-cli -h "{{ service.host }}" \
     2>/dev/null                     \
     | restic backup  \
     --host="{{ service.name }}"     \
+	$RESTIC_TAGS                    \
 	--stdin                         \
     --stdin-filename "{{ service.filename | default('stdin') }}" \
     {{ restic_agent_custom_opts }}
@@ -107,6 +184,7 @@ curl -k -s \
     | gunzip \
     | restic backup  \
     --host="{{ service.name }}"     \
+	$RESTIC_TAGS                    \
 	--stdin                         \
     --stdin-filename "{{ service.filename | default('stdin.tar') }}" \
     {{ restic_agent_custom_opts }}
@@ -114,11 +192,13 @@ curl -k -s \
 {% elif service.type == 'gitlab' %}
 rm -rf /var/opt/gitlab/backups/*
 {# Step 1: do a GitLab named backup #}
-/opt/gitlab/bin/gitlab-rake gitlab:backup:create CRON=1 GZIP_RSYNCABLE=yes SKIP=builds,artifacts BACKUP=restic SKIP=tar
+nice -n 19 $IONICE /opt/gitlab/bin/gitlab-rake gitlab:backup:create CRON=1 GZIP_RSYNCABLE=yes SKIP=builds,artifacts BACKUP=restic SKIP=tar
 
 {# Step 2: read the backup into restic #}
 nice -n 19 $IONICE restic backup \
-	{{ restic_agent_custom_opts }} \
+    --host="{{ service.name }}"     \
+	$RESTIC_TAGS                    \
+	{{ restic_agent_custom_opts }}  \
 	/var/opt/gitlab/backups
 
 {# Step 3: delete the backup #}
@@ -145,12 +225,39 @@ if [ "$TARGET_IS_PRESENT" == "1" ]; then
         --quiet 1 \
         | restic backup  \
         --host="{{ service.name }}"     \
+	    $RESTIC_TAGS                    \
         --stdin                         \
         --stdin-filename "{{ service.filename | default('stdin.tar') }}" \
         {{ restic_agent_custom_opts }}
 elif [ $BORG_LOGGING = "--verbose" ]; then
     printf "VM/LXC {{ service.vmid }} skipped as it's not present in this host of the cluster\n"
 fi
+
+{% elif service.type == 'victoriametrics' %}
+
+BKTMP=$(mktemp -d)
+remove_tmpdir() { rm -rf "$BKTMP"; }
+defer remove_tmpdir
+
+{# Step 1: perform vmbackup #}
+nice -n 19 $IONICE vmbackup \
+    -loggerLevel WARN \
+    -storageDataPath="{{ service.vm_storage_path }}" \
+    -snapshot.createURL="{{ service.vm_url }}/snapshot/create" \
+    "-dst=fs://$BKTMP"
+
+{# Step 2: backup the created vmbackup (!!) #}
+pushd "$BKTMP"
+nice -n 19 $IONICE restic backup \
+    --host="{{ service.name }}"     \
+	$RESTIC_TAGS                    \
+	{{ restic_agent_custom_opts }} \
+	.
+popd
+
+{# Step 3: remove the vmbackup #}
+{# Automatically removed on exit #}
+
 {% endif %}
 
 {% if restic_cleanup %}

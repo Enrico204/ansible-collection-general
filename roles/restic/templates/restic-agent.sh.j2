@@ -7,17 +7,18 @@ export RESTIC_REPOSITORY='{{ restic_agent_repository }}'
 {% if restic_agent_password != "" %}
 export RESTIC_PASSWORD='{{ restic_agent_password }}'
 {% endif %}
-IONICE=""
 {% if (restic_agent_cgroups2_devices | default([])) | length > 0 %}
 CGROUP2_BASE="$(mount | grep cgroup2 | cut -d ' ' -f 3)"
 CGROUP2_PATH="$CGROUP2_BASE/restic-agent"
 {% endif %}
+export RESTIC_TAGS="--tag MANUAL"
 
 {# In scheduled tasks, add a random delay #}
 if [ "${1:-}" == "-cron" ]; then
 {% if restic_agent_delayed_start_max > 0 %}
 	sleep $(($RANDOM % {{ restic_agent_delayed_start_max }}))
 {% endif %}
+	RESTIC_TAGS=""
 
     {# Redirect stdout and stderr to syslog #}
     {#exec 3>&1 4>&2
@@ -25,19 +26,19 @@ if [ "${1:-}" == "-cron" ]; then
 
 fi
 
-## Cleanup script
-function __script_cleanup() {
-	local exitcode=$1
-	local bashcmd=$3
-	local lineno=$2
+DEFER=""
+defer() {
+	DEFER="$(printf "%q " "$@"); $DEFER"
+	trap "$DEFER" EXIT
+}
+
+__cleanup() {
 	# Disable the error trap handler to prevent potential recursion
-	trap - ERR
 	trap - EXIT
+    trap - ERR
 	# Disable errors
 	set +Eeuo pipefail
 
-	# Here you can handle the cleanup
-	pkill -9 restic
 {% if (restic_agent_cgroups2_devices | default([])) | length > 0 %}
 	{# Switch current process to root cgroup #}
 	echo $$ > "$CGROUP2_BASE/cgroup.procs"
@@ -45,19 +46,27 @@ function __script_cleanup() {
 		rmdir "$CGROUP2_PATH"
 	fi
 {% endif %}
+	exit 0
+}
+defer __cleanup
+
+__handle_errors() {
+	local exitcode=$1
+	local bashcmd=$3
+	local lineno=$2
+	# Disable the error trap handler to prevent potential recursion
+	trap - ERR
+	# Disable errors
+	set +Eeuo pipefail
+
+	>&2 printf "Exit status $exitcode at line $lineno, command: $bashcmd\n"
 
 	# Exit with failure status
 	exit $exitcode
 }
 
-# ERR is the trap for errors, EXIT is the trap for clean exits
-trap '__script_cleanup $? $LINENO "$BASH_COMMAND"' EXIT ERR
-
-## Pre-backup script
-
-{{ restic_agent_pre | default('') }}
-
-## END pre-backup script
+# Print error messages
+trap '__handle_errors $? $LINENO "$BASH_COMMAND"' ERR
 
 {% if (restic_agent_cgroups2_devices | default([])) | length > 0 %}
 # Limit I/O with cgroups2
@@ -79,6 +88,8 @@ echo "$DEV_ADDR rbps={{ device.bps | default(10485760) }} wbps={{ device.bps | d
 {# Switch current process to cgroup #}
 echo $$ > "$CGROUP2_PATH/cgroup.procs"
 
+{# Skip IONICE #}
+IONICE=""
 {% else %}
 # Limit I/O with ionice
 IONICE="ionice -c 3"
@@ -87,6 +98,12 @@ then
 	IONICE=""
 fi
 {% endif %}
+
+## Pre-backup script
+
+{{ restic_agent_pre | default('') }}
+
+## END pre-backup script
 
 {# Tidy cache #}
 restic cache --cleanup
@@ -101,6 +118,7 @@ nice -n 19 $IONICE restic backup \
 {% for excl in restic_agent_iexclude_basic %}
 	--iexclude '{{ excl }}' \
 {% endfor %}
+	$RESTIC_TAGS \
 	{{ restic_agent_custom_opts }} \
 	{% for path in restic_agent_backup_paths %} {{ path }} {% endfor %}
 

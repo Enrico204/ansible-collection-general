@@ -3,21 +3,47 @@ set -euo pipefail
 
 export PATH="$PATH:/usr/bin/:/usr/local/bin/"
 
+{% if restic_agent_remote_sync %}
+{# Remote mirror #}
+export RESTIC_REPOSITORY='{{ restic_agent_repository }}'
+export RESTIC_PASSWORD='{{ restic_agent_password }}'
+
+export RESTIC_REPOSITORY2='{{ restic_agent_remote_repository }}'
+export RESTIC_PASSWORD2='{{ restic_agent_remote_password }}'
+
+restic copy $(restic snapshots -c | cut -f 1 -d ' ' | grep -E '^[a-f0-9]{8}')
+
+export RESTIC_REPOSITORY='{{ restic_agent_remote_repository }}'
+export RESTIC_PASSWORD='{{ restic_agent_remote_password }}'
+
+# restic forget \
+# 	--keep-daily    14   \
+# 	--keep-weekly   8    \
+# 	--keep-monthly  12   \
+# 	--keep-tag MANUAL    \
+# 	--group-by host
+
+# restic prune
+
+{% endif %}
+
+{% if rclone %}
+{# Rclone #}
 export RESTIC_REPOSITORY='{{ restic_agent_repository }}'
 export RESTIC_PASSWORD='{{ restic_agent_password }}'
 
 export RESTIC_REPOSITORY2='rclone:{{ rclone_repository }}'
 export RESTIC_PASSWORD2='{{ rclone_password }}'
 
+export RCLONE_DRIVE_USE_TRASH=false
 export RCLONE_CONFIG="{{ rclone_config_path }}"
 export RCLONE_TRANSFERS=4
 
-# Copy latest snapshot
-for host in $(restic snapshots -c  | tr -s ' ' | cut -f 4 -d ' ' | tail +3 | head -n -2 | sort | uniq); do
-    restic copy --host=$host latest
-done
+restic copy $(restic snapshots -c | cut -f 1 -d ' ' | grep -E '^[a-f0-9]{8}')
 
-{% if rclone_prune %}
+export RESTIC_REPOSITORY='rclone:{{ rclone_repository }}'
+export RESTIC_PASSWORD='{{ rclone_password }}'
+
 restic forget \
 	--keep-daily    14   \
 	--keep-weekly   8    \
@@ -26,4 +52,5 @@ restic forget \
 	--group-by host
 
 restic prune
+
 {% endif %}

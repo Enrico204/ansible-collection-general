@@ -23,8 +23,8 @@ Support matrix
 | `restic_agent` | If `true`, an "agent" will be installed in the machine (default: false) |
 | `restic_agent_repository` | URL for the restic repository, to be passed to `restic` executable, **required** |
 | `restic_agent_password` | Restic repository password, **required** |
-| `restic_agent_pre` | Bash snippet to execute before the backup |
-| `restic_agent_post` | Bash snippet to execute after the backup |
+| `restic_agent_pre` | Bash snippet to execute before the backup. **Use `defer` to execute functions on exit, not trap!** |
+| `restic_agent_post` | Bash snippet to execute after the backup. **Use `defer` to execute functions on exit, not trap!** |
 | `restic_agent_delayed_start_max` | Delay the agent backup schedule by a random number of seconds (`restic_agent_delayed_start_max` is the maximum value). `0` means immediately at the schedule time |
 | `restic_agent_iexclude` | List of expressions for exclusion, case insensitive (default empty - note that basic exclusions are set) |
 | `restic_agent_backup_paths` | Paths to backup (default `/`) |
@@ -32,7 +32,6 @@ Support matrix
 | `restic_agent_services` | Agent service definition (list of objects, see the example) |
 | `restic_agent_when` | (object) Schedule the backup at this time. Sub-fields are described below |
 | `rclone` | Installs `rclone` and configure a remote sync with rclone, (default: false) |
-| `rclone_prune` | Do a periodical pruning of rclone remote repository, (default: false) |
 | `rclone_config_path` | Rclone configuration path (on the remote machine) |
 | `rclone_repository` | Rclone repository URL |
 | `rclone_password` | Rclone restic repository password |
@@ -101,7 +100,7 @@ all:
                 function cleanup {
                     umount /media/nas_safe/
                 }
-                trap cleanup EXIT
+                defer cleanup
                 mount /media/nas_safe/
               path: ["/media/nas_safe/"]
 
@@ -111,9 +110,7 @@ all:
           rclone_repository: "googledrive:exampledir"
           rclone_password: verylongpassword2
           rclone_config_path: /tank/rclone/rclone.conf
-          rclone_prune: true
       vars:
-        restic_agent: true
         restic_agent_repository: rest:http://1.2.3.4:8000
         restic_agent_password: verylongpassword
 ```

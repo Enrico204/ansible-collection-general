@@ -21,8 +21,6 @@
 | `borg_agent_services` | Borg agent service list. See below |
 <!--
 | `rclone` | Installs `rclone` and configure a remote sync with rclone, (default: false) |
-| `rclone_prune` | Do a periodical pruning of rclone remote repository, (default: false) |
-| `rclone_config_path` | Rclone configuration path (on the remote machine) |
 | `rclone_repository` | Rclone repository URL |
 | `rclone_password` | Rclone borg repository password | -->
 
