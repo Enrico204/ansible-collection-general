@@ -1,10 +1,3 @@
-- name: Install bash on FreeBSD as requirement
-  become: true
-  community.general.pkgng:
-    name: bash
-    state: present
-  when: ansible_os_family == 'FreeBSD'
-
 # TODO: do not exclude RPis, create a tmpfs mount point for r/o filesystems instead
 # TODO: RPis must use cron as their FS is r/o
 - name: Create new restic agent executable
@@ -22,7 +15,7 @@
     dest: /etc/cron.daily/restic-agent
     content: |-
       #!/usr/bin/env bash
-      /usr/local/sbin/restic-agent -cron
+      /usr/local/sbin/restic-agent -cron | ts '%FT%T%z'
       exit $?
     owner: root
     group: root
@@ -53,5 +46,5 @@
     weekday: "{{ restic_agent_when.weekday | default('*') }}"
     month: "{{ restic_agent_when.month | default('*') }}"
     day: "{{ restic_agent_when.day | default('*') }}"
-    job: "/usr/local/sbin/restic-agent -cron"
+    job: "/bin/bash -eou pipefail -c \"/usr/local/sbin/restic-agent -cron | ts '%FT%T%z'\""
   when: restic_agent_cron == 'cron' and (restic_agent_when is not defined or restic_agent_when != "never")

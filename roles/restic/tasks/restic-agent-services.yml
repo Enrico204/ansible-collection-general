@@ -25,7 +25,7 @@
     dest: /etc/cron.daily/restic-agent-{{ service.name }}
     content: |-
       #!/usr/bin/env bash
-      /usr/local/sbin/restic-agent-{{ service.name }} -cron
+      /usr/local/sbin/restic-agent-{{ service.name }} -cron | ts '%FT%T%z'
       exit $?
     owner: root
     group: root
@@ -56,5 +56,5 @@
     weekday: "{{ service.when.weekday | default('*') }}"
     month: "{{ service.when.month | default('*') }}"
     day: "{{ service.when.day | default('*') }}"
-    job: "/usr/local/sbin/restic-agent-{{ service.name }} -cron"
+    job: "/bin/bash -eou pipefail -c \"/usr/local/sbin/restic-agent-{{ service.name }} -cron | ts '%FT%T%z'\""
   when: "restic_agent_cron == 'cron' and (service.when is not defined or service.when != 'never') and (service.state | default('present')) == 'present'"

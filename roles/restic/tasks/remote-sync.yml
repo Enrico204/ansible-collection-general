@@ -1,3 +1,4 @@
+# remote-sync
 - name: Create remote repo upload executable
   become: true
   template:
@@ -18,5 +19,24 @@
   ansible.builtin.cron:
     name: "restic-remote-sync"
     minute: "0"
-    hour: "4"
+    hour: "3"
     job: "/usr/local/sbin/restic-remote-sync"
+
+# remote-prune
+- name: Create remote repo prune executable
+  become: true
+  template:
+    src: restic-remote-prune.sh.j2
+    dest: /usr/local/sbin/restic-remote-prune
+    owner: root
+    group: root
+    mode: '0700'
+
+- name: Create cron entry for restic remote repo prune
+  become: true
+  ansible.builtin.cron:
+    name: "restic-remote-prune"
+    day: "1"
+    minute: "0"
+    hour: "4"
+    job: "/usr/local/sbin/restic-remote-prune"

@@ -2,6 +2,24 @@
     apt:
       cache_valid_time: 86400
   block:
+    - name: Install bash on FreeBSD as requirement
+      become: true
+      community.general.pkgng:
+        name: bash
+        state: present
+      when: ansible_os_family == 'FreeBSD'
+
+    - name: Install requirements
+      become: true
+      apt:
+        pkg:
+          - bash
+          - util-linux
+          - coreutils
+          - moreutils
+        state: present
+      when: ansible_os_family == 'Debian'
+
     - name: Install restic executable
       import_tasks: restic.yml
 

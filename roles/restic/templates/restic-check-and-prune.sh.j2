@@ -5,13 +5,13 @@ export PATH="$PATH:/usr/bin/:/usr/local/bin/"
 export RESTIC_REPOSITORY='{{ restic_agent_repository }}'
 export RESTIC_PASSWORD='{{ restic_agent_password }}'
 
-restic check
+restic check | ts '%FT%T%z'
 
 restic forget \
 	--keep-daily    7   \
 	--keep-weekly   4   \
 	--keep-monthly  6   \
 	--keep-tag MANUAL   \
-	--group-by host
+	--group-by host | ts '%FT%T%z'
 
-restic prune
+restic prune | ts '%FT%T%z'

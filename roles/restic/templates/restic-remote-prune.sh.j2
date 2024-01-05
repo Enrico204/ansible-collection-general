@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+export PATH="$PATH:/usr/bin/:/usr/local/bin/"
+
+{% if restic_agent_remote_sync %}
+{# Remote mirror #}
+export RESTIC_REPOSITORY='{{ restic_agent_remote_repository }}'
+export RESTIC_PASSWORD='{{ restic_agent_remote_password }}'
+
+restic prune | ts '%FT%T%z'
+
+{% endif %}
+
+{% if rclone %}
+{# Rclone #}
+export RCLONE_DRIVE_USE_TRASH=false
+export RCLONE_CONFIG="{{ rclone_config_path }}"
+export RCLONE_TRANSFERS=4
+
+export RESTIC_REPOSITORY='rclone:{{ rclone_repository }}'
+export RESTIC_PASSWORD='{{ rclone_password }}'
+
+restic prune --max-unused 25% | ts '%FT%T%z'
+
+{% endif %}

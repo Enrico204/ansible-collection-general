@@ -11,19 +11,17 @@ export RESTIC_PASSWORD='{{ restic_agent_password }}'
 export RESTIC_REPOSITORY2='{{ restic_agent_remote_repository }}'
 export RESTIC_PASSWORD2='{{ restic_agent_remote_password }}'
 
-restic copy $(restic snapshots -c | cut -f 1 -d ' ' | grep -E '^[a-f0-9]{8}')
+restic copy $(restic snapshots -c | cut -f 1 -d ' ' | grep -E '^[a-f0-9]{8}') | ts '%FT%T%z'
 
-export RESTIC_REPOSITORY='{{ restic_agent_remote_repository }}'
-export RESTIC_PASSWORD='{{ restic_agent_remote_password }}'
+# export RESTIC_REPOSITORY='{{ restic_agent_remote_repository }}'
+# export RESTIC_PASSWORD='{{ restic_agent_remote_password }}'
 
 # restic forget \
 # 	--keep-daily    14   \
 # 	--keep-weekly   8    \
 # 	--keep-monthly  12   \
 # 	--keep-tag MANUAL    \
-# 	--group-by host
-
-# restic prune
+# 	--group-by host | ts '%FT%T%z'
 
 {% endif %}
 
@@ -39,7 +37,7 @@ export RCLONE_DRIVE_USE_TRASH=false
 export RCLONE_CONFIG="{{ rclone_config_path }}"
 export RCLONE_TRANSFERS=4
 
-restic copy $(restic snapshots -c | cut -f 1 -d ' ' | grep -E '^[a-f0-9]{8}')
+restic copy $(restic snapshots -c | cut -f 1 -d ' ' | grep -E '^[a-f0-9]{8}') | ts '%FT%T%z'
 
 export RESTIC_REPOSITORY='rclone:{{ rclone_repository }}'
 export RESTIC_PASSWORD='{{ rclone_password }}'
@@ -49,8 +47,6 @@ restic forget \
 	--keep-weekly   8    \
 	--keep-monthly  12   \
 	--keep-tag MANUAL    \
-	--group-by host
-
-restic prune
+	--group-by host | ts '%FT%T%z'
 
 {% endif %}
