@@ -19,6 +19,7 @@
     pkg:
       - rclone
     state: present
+    update_cache: true
   when: ansible_os_family == 'Debian'
 
 - name: Install binary from GitHub

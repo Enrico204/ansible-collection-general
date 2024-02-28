@@ -21,6 +21,7 @@
         pkg:
           - rtsp-simple-server
           - ffmpeg
+        update_cache: true
         state: present
 
     - name: Create rtsp-simple-server config

@@ -19,6 +19,7 @@
     pkg:
       - restic
     state: present
+    update_cache: true
     default_release: "o=Netsplit,n={{ ansible_distribution_release }},c="
   when: ansible_os_family == 'Debian' and not restic_stdin_experiment
 

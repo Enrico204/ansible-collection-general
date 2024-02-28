@@ -13,6 +13,7 @@
     - name: Add xrdp
       become: true
       apt:
+        update_cache: true
         state: present
         name:
           - xrdp=0.9.12-1.1netsplit1

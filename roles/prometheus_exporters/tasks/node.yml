@@ -19,6 +19,7 @@
     - name: Add node exporter
       become: true
       apt:
+        update_cache: true
         state: latest
         name:
           - prometheus-node-exporter

@@ -12,6 +12,7 @@
     pkg:
       - wireguard
       - wireguard-tools
+    update_cache: true
     state: present
 
 # Wireguard config

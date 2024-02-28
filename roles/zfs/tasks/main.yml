@@ -17,3 +17,4 @@
         name:
           - zfs-modules-amd64
           - zfsutils-linux
+        update_cache: true
