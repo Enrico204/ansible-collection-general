@@ -62,6 +62,8 @@
         content: |
           IPTABLES_RESTORE_NOFLUSH=no
           IP6TABLES_RESTORE_NOFLUSH=no
+          IPTABLES_TEST_RULESET=yes
+          IP6TABLES_TEST_RULESET=yes
         dest: "/etc/default/netfilter-persistent"
         mode: 0644
         owner: root

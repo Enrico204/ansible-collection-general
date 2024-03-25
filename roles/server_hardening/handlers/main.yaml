@@ -15,7 +15,7 @@
 - name: Reload iptables rules
   become: true
   systemd:
-    name: iptables
+    name: netfilter-persistent
     state: restarted
 
 - name: Reload nftables rules
