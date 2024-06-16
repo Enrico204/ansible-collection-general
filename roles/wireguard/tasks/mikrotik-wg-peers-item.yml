@@ -30,16 +30,16 @@
         wgpeerkeepalive: >-
           {{ "persistent-keepalive=" ~ item.keepalive if "keepalive" in item
           else "persistent-keepalive=" ~ wireguard_default_keepalive }}
-        wgpeerallowed: '{{ item.vpn_ip }}/32{{ "," ~ item.allowed|join(",") if "allowed" in item else "" }}'
+        wgpeerallowed: '{{ item.vpn_ip }}{{ "," ~ item.allowed|join(",") if "allowed" in item else "" }}'
 
     - name: 'Prepare peer {{ inventory_hostname }} --> {{ peer["key"] }} command'
       set_fact:
-        wgpeercmd: comment="{{ peer["key"] }}" allowed-address="{{ wgpeerallowed }}" {{ wgpeerkeepalive }} {{ wgpeerhost }} {{ wgpeerport }}
+        wgpeercmd: name="{{ peer["key"] }}" comment="" allowed-address="{{ wgpeerallowed }}" {{ wgpeerkeepalive }} {{ wgpeerhost }} {{ wgpeerport }}
       when: wgpeerhost | length > 0
 
     - name: 'Prepare peer {{ inventory_hostname }} --> {{ peer["key"] }} command (roaming)'
       set_fact:
-        wgpeercmd: comment="{{ peer["key"] }}" allowed-address="{{ wgpeerallowed }}" {{ wgpeerkeepalive }}
+        wgpeercmd: name="{{ peer["key"] }}" comment="" allowed-address="{{ wgpeerallowed }}" {{ wgpeerkeepalive }} is-responder=yes
       when: wgpeerhost | length == 0
 
     - name: 'Add peer {{ inventory_hostname }} --> {{ peer["key"] }} if they does not exists'
